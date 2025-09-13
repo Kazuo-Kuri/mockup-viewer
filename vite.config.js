@@ -13,4 +13,13 @@ export default defineConfig({
     "**/*.ktx2",
     "**/*.basis"
   ],
+  server: {
+    proxy: {
+      "/compose_scene": {
+        target: "http://localhost:5001",
+        changeOrigin: true,
+        // secure: false, // https→http の場合など必要なら有効化
+      }
+    }
+  }
 });
