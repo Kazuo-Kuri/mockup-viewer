@@ -6,7 +6,9 @@ import io, base64, os
 app = Flask(__name__)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-BG_PATH = "public/scenes/cafe.jpg"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BG_PATH = os.path.normpath(os.path.join(BASE_DIR, "..", "public", "scenes", "cafe.jpg"))
+print("BG_PATH =>", BG_PATH)  # 起動時に確認用ログ
 BOX = (600, 680, 940, 1080)  # 置き場所（後で調整）
 
 def _dataurl_to_img(u):
