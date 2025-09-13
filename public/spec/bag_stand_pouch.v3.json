@@ -1,0 +1,14 @@
+{
+  "bag_dimensions_m": { "W": 0.13, "H": 0.195, "D": 0.045 },
+  "print_area_m": {
+    "width": 0.08,
+    "height": 0.10,
+    "offset_top": 0.055,
+    "offset_left": 0.025,
+    "offset_right": 0.025
+  },
+  "safe_inner_m": 0.003,
+  "bleed_m": 0.0,
+  "coordinate_system": { "up": "+Y", "front": "+Z", "origin": "bottom_center_slightly_above" },
+  "print_area_center_from_bottom_m": 0.080
+}
