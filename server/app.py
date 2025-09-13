@@ -29,33 +29,32 @@ def _make_mask(size, box):
 @app.post("/compose_scene")
 def compose_scene():
     try:
-        bag = _dataurl_to_img(request.json["bag_png_data_url"])
+        data = request.get_json(force=True)
+        if not data or "bag_png_data_url" not in data:
+            return jsonify({"error": "bag_png_data_url がありません"}), 400
+        if not os.path.exists(BG_PATH):
+            return jsonify({"error": f"背景が見つかりません: {BG_PATH}"}), 500
+
+        # 画像読み込み
+        bag = _dataurl_to_img(data["bag_png_data_url"])   # RGBA
         bg  = Image.open(BG_PATH).convert("RGB")
-        mask = _make_mask(bg.size, BOX)
 
-        bgb = io.BytesIO(); bg.save(bgb, "PNG"); bgb.seek(0)
-        msk = io.BytesIO(); mask.save(msk, "PNG"); msk.seek(0)
-        bagb = io.BytesIO(); bag.save(bagb, "PNG"); bagb.seek(0)
+        # 置き場所サイズにリサイズ
+        x1, y1, x2, y2 = BOX
+        w, h = x2 - x1, y2 - y1
+        bag_resized = bag.resize((w, h), Image.LANCZOS)
 
-        prompt = (
-            "Place a flat-bottom coffee bag in the masked area. "
-            "Match perspective and lighting to the cafe background. "
-            "Keep the bag's label/colors; add realistic soft shadow."
-        )
+        # そのまま貼り付け（アルファで）
+        comp = bg.copy()
+        comp.paste(bag_resized, (x1, y1), bag_resized)
 
-        res = client.images.edits(
-            model="gpt-image-1",
-            prompt=prompt,
-            image=[bgb],
-            mask=msk,
-            additional_images=[bagb],  # SDKによっては引数名変更が必要
-            size="1024x1024"
-        )
-        img = Image.open(io.BytesIO(base64.b64decode(res.data[0].b64_json)))
-        return jsonify({"image_data_url": _img_to_dataurl(img)})
+        # dataURL で返す
+        return jsonify({"image_data_url": _img_to_dataurl(comp)})
 
     except Exception as e:
+        import traceback; traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(port=5001, debug=True)
