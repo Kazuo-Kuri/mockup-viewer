@@ -38,7 +38,7 @@ export default function Scene() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = TONE_EXPOSURE;
     if ("physicallyCorrectLights" in renderer) renderer.physicallyCorrectLights = true;
-    renderer.setClearColor(0x000000, 0);     // ★ 追加：背景を完全透明に
+    renderer.setClearColor("#f8f9fb", 1);    // 画面と同じ背景色で不透明
     mount.appendChild(renderer.domElement);
 
     // --- scene / camera / controls ---
