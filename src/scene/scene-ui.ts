@@ -9,6 +9,7 @@ if (!btn || !out) {
   console.error("#btn-cafe / #scene-out が見つかりません。index.html のIDを確認してください。");
 }
 
+/** out に画像を描画 */
 function renderToOut(url: string) {
   if (!out) return;
   const img = new Image();
@@ -21,6 +22,7 @@ function renderToOut(url: string) {
   out.appendChild(img);
 }
 
+/** プレビュー用に別タブで開く */
 function openPreviewTab(url: string) {
   const w = window.open("", "_blank");
   if (!w) return;
@@ -32,6 +34,7 @@ function openPreviewTab(url: string) {
   w.document.close();
 }
 
+/** 初期化（環境変数が無ければボタン無効化） */
 (function setupCafeButton() {
   console.log("[scene] SCENE_API_BASE =", SCENE_API_BASE);
   if (!btn) return;
@@ -51,4 +54,49 @@ function openPreviewTab(url: string) {
 /** ミニプレビュー（袋PNGが作れているか即確認用） */
 function showMiniBagPreview(dataUrl: string) {
   const box = document.createElement("div");
-  box.style.cssText = "margin:
+  box.style.cssText = "margin:8px 0; font:12px/1.4 system-ui;"; // ★ここが原因。1行の文字列に修正
+  box.innerHTML = `
+    <div style="opacity:.7">bag preview (client-side): length=${dataUrl.length}</div>
+    <img src="${dataUrl}" style="max-width:160px; background:#eee; border:1px solid #ddd; border-radius:6px; display:block"/>
+  `;
+  out?.prepend(box);
+}
+
+btn?.addEventListener("click", async () => {
+  if (!out || !btn || !SCENE_API_BASE) return;
+
+  btn.disabled = true;
+  out.textContent = "生成中…";
+
+  try {
+    // ① Three.js から透過PNGの dataURL を取得
+    const bagDataUrl = await exportCurrentBagPNG(); // 例: "data:image/png;base64,..."
+    if (!bagDataUrl || typeof bagDataUrl !== "string" || !bagDataUrl.startsWith("data:image/png")) {
+      throw new Error("バッグPNGの生成に失敗（PNG dataURLが得られていません）");
+    }
+    console.log("[bag] dataURL length =", bagDataUrl.length);
+    showMiniBagPreview(bagDataUrl);
+
+    // ② API合成（JSON返却優先。失敗すればフォーム送信にフォールバックする composeScene を利用）
+    // ※ あなたの api.ts を私の提案版に更新済みである前提（composeScene({ pngDataUrl, scene, preferJson })）
+    const result: any = await composeScene({ pngDataUrl: bagDataUrl, scene: "cafe-1", preferJson: true });
+
+    // ③ 返却の型に応じてURLを作る
+    let urlForView: string | null = null;
+    if (result && typeof result.image_data_url === "string") {
+      urlForView = result.image_data_url;
+    } else if (result && result.imageBlob instanceof Blob) {
+      urlForView = URL.createObjectURL(result.imageBlob);
+    }
+    if (!urlForView) throw new Error("合成結果に画像が含まれていません。");
+
+    // ④ 表示
+    openPreviewTab(urlForView);
+    renderToOut(urlForView);
+  } catch (e: any) {
+    console.error(e);
+    out.innerHTML = `<div style="color:#c00;">${e?.message || "生成に失敗しました"}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+});
