@@ -33,6 +33,7 @@ async function postJson({
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image: pngDataUrl, scene }),
+    mode: "cors",
   });
 
   const ct = res.headers.get("content-type") || "";
@@ -79,7 +80,7 @@ async function postForm({
 
   if (scene) form.append("scene", scene);
 
-  const res = await fetch(url, { method: "POST", body: form });
+  const res = await fetch(url, { method: "POST", body: form, mode: "cors" });
   const ct = res.headers.get("content-type") || "";
 
   if (!res.ok) {

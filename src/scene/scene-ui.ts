@@ -109,7 +109,7 @@ btn?.addEventListener("click", async () => {
 
   try {
     // ① Three.js から透過PNGの dataURL を取得（transparent 推奨）
-    const bagDataUrl = await exportCurrentBagPNG({ transparent: true, scale: 1 }); // 実装が引数なしならそのままでOK
+    const bagDataUrl = await exportCurrentBagPNG({ transparent: true, scale: 1 });
     if (!bagDataUrl || typeof bagDataUrl !== "string" || !bagDataUrl.startsWith("data:image/png")) {
       throw new Error("バッグPNGの生成に失敗（PNG dataURLが得られていません）");
     }
