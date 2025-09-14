@@ -11,13 +11,26 @@ export const SCENE_API_BASE = (RAW_API || "").trim().replace(/\/+$/, "");
 console.log("[env] VITE_SCENE_API(raw) =", RAW_API);
 console.log("[env] SCENE_API_BASE     =", SCENE_API_BASE);
 
+type ComposeJsonResponse = {
+  /** 例: "data:image/png;base64,...." */
+  image_data_url: string;
+};
+
+type ComposeBlobResponse = {
+  /** サーバが image/png 等で返した場合の Blob */
+  imageBlob: Blob;
+};
+
 /**
  * カフェ背景と合成
- * @param pngDataUrl - data:image/png;base64,... 形式
+ * @param pngDataUrl - data:image/png;base64,... 形式（透過PNGを推奨）
  * @param asJson - true のとき { image_data_url } を想定。false のときは画像Blobを返す
  * @returns asJson=true: { image_data_url: string } / asJson=false: { imageBlob: Blob }
  */
-export async function composeScene(pngDataUrl: string, asJson = true): Promise<any> {
+export async function composeScene(
+  pngDataUrl: string,
+  asJson = true
+): Promise<ComposeJsonResponse | ComposeBlobResponse> {
   if (!SCENE_API_BASE) throw new Error("VITE_SCENE_API が未設定です。");
 
   const url = `${SCENE_API_BASE}/compose${asJson ? "?format=json" : ""}`;
@@ -34,10 +47,16 @@ export async function composeScene(pngDataUrl: string, asJson = true): Promise<a
     throw new Error(`Scene API error: ${res.status} ${res.statusText} ${text.slice(0, 200)}`);
   }
 
+  // JSON なら dataURL を想定
   if (ct.includes("application/json")) {
-    return await res.json(); // 期待: { image_data_url: "data:image/png;base64,..." }
+    const json = (await res.json()) as ComposeJsonResponse;
+    if (!json?.image_data_url) {
+      throw new Error("Unexpected JSON payload: image_data_url が存在しません。");
+    }
+    return json;
   }
 
+  // 画像そのものを返す場合
   if (ct.startsWith("image/")) {
     const blob = await res.blob();
     return { imageBlob: blob };
