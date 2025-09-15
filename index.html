@@ -17,8 +17,6 @@
 
         <button id="btn-export" class="btn">PNG書き出し</button>
         <button id="btn-cafe" class="btn btn-primary">カフェで見る</button>
-
-        <!-- 必要なら：背景一括プレビュー用 -->
         <button id="btn-refresh-previews" class="btn">右の背景プレビュー更新</button>
       </div>
     </header>
@@ -26,27 +24,26 @@
     <!-- 左右2分割 -->
     <main class="split">
       <section class="left3d">
-        <canvas id="three-canvas"></canvas>
-        <!-- ここに既存の3D初期化スクリプトが描画 -->
+        <!-- ★ 固定canvasは置かない。ReactがここにThreeのcanvasを生成します -->
+        <div id="root" style="width:100%; height:100%;"></div>
       </section>
 
       <aside class="right2d">
-        <!-- 初期は白。カフェ等の更新時に置き換え -->
-        <div class="thumb">
-          <img id="prev-cafe" alt="カフェ背景プレビュー" />
-        </div>
-        <div class="thumb">
-          <img id="prev-shelf" alt="棚背景プレビュー" />
-        </div>
-        <div class="thumb">
-          <img id="prev-counter" alt="レジ横背景プレビュー" />
-        </div>
-        <div class="thumb">
-          <img id="prev-free" alt="自由枠（白 or 透過）" />
-        </div>
+        <!-- 初期は白。生成時に置き換え -->
+        <div class="thumb"><img id="prev-cafe"    alt="カフェ背景プレビュー" /></div>
+        <div class="thumb"><img id="prev-shelf"   alt="棚背景プレビュー" /></div>
+        <div class="thumb"><img id="prev-counter" alt="レジ横背景プレビュー" /></div>
+        <div class="thumb"><img id="prev-free"    alt="自由枠（白 or 透過）" /></div>
       </aside>
     </main>
 
+    <!-- 3Dに干渉しない右パネル/ツールバー配線 -->
     <script type="module" src="/src/scene/scene-ui.ts"></script>
+
+    <!-- ★ React エントリ（あなたの構成に合わせて .tsx / .jsx を指定） -->
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- 例: Vite + React の標準構成なら main.tsx に
+         createRoot(document.getElementById('root')).render(<Scene />)
+         のように書かれているはずです -->
   </body>
 </html>
