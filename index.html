@@ -1,25 +1,112 @@
 <!doctype html>
-<html>
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bag Mockup</title>
     <style>
-      /* 余白ゼロで全画面表示 */
-      html, body, #root { height: 100%; }
-      body { margin: 0; }
+      /* ベース */
+      html, body { height: 100%; }
+      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#fafafa; }
+
+      /* 上段ツールバー */
+      .toolbar {
+        height: 56px;
+        display: grid;
+        align-items: center;
+        padding: 0 12px;
+        border-bottom: 1px solid #eee;
+        background: #fff;
+      }
+      .toolbar-row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .btn {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        background: #fff;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .btn-primary { background:#2b6cb0; color:#fff; border-color:#2b6cb0; }
+      .btn.file { position: relative; overflow: hidden; }
+      .btn.file input[type=file]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+      /* 下段：左右2分割 */
+      .split {
+        height: calc(100vh - 56px);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding: 12px;
+        box-sizing: border-box;
+      }
+
+      /* 左：3D（Reactが#root内にThreeのcanvasを生成） */
+      .left3d {
+        position: relative;
+        background: #0e0e10;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .left3d > #root { width: 100%; height: 100%; } /* ←重要 */
+
+      /* 右：カフェ合成の出力枠（scene-ui.ts が #scene-out に描画） */
+      .right2d {
+        background:#fff;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        padding: 12px;
+        box-sizing: border-box;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      #scene-out {
+        width: 100%;
+        height: 100%;
+        min-height: 140px;
+        background: #f6f6f6;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+      }
+      #scene-out img { max-width: 100%; max-height: 100%; display: block; }
+
+      /* モバイル */
+      @media (max-width: 900px) {
+        .split { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 56px); }
+        .right2d { min-height: 40vh; }
+      }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- 上段：ボタン（IDは既存と互換） -->
+    <header class="toolbar">
+      <div class="toolbar-row">
+        <label class="btn file">
+          画像アップロード
+          <input id="file-upload" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.pdf,.ai" />
+        </label>
+        <button id="btn-export" class="btn">PNGダウンロード</button>
+        <button id="btn-cafe" class="btn btn-primary">カフェで確認</button>
+      </div>
+    </header>
+
+    <!-- 下段：左右2分割 -->
+    <main class="split">
+      <!-- 左：3D -->
+      <section class="left3d">
+        <div id="root"></div>
+      </section>
+
+      <!-- 右：カフェ合成プレビュー -->
+      <aside class="right2d">
+        <div id="scene-out">ここにカフェ合成プレビューが表示されます</div>
+      </aside>
+    </main>
+
+    <!-- 既存スクリプト（ロジック変更なし） -->
     <script type="module" src="/src/main.jsx"></script>
-
-    <button id="btn-cafe">カフェで見る</button>
-<div id="scene-out"
-     style="min-height:140px;padding:12px;background:#f6f6f6;position:relative;z-index:10;">
-</div>
-<script type="module" src="/src/scene/scene-ui.ts"></script>
-
-  
+    <script type="module" src="/src/scene/scene-ui.ts"></script>
   </body>
 </html>
