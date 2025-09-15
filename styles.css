@@ -1,0 +1,114 @@
+/* 全体 */
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #fafafa;
+  color: #222;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
+}
+
+/* 上部ツールバー */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #ffffffcc; /* 半透明で下が少し見える */
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid #e5e5e5;
+}
+.toolbar-row {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ボタン風 */
+.btn {
+  appearance: none;
+  border: 1px solid #ccc;
+  background: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn:hover { background: #f6f6f6; }
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  background: #1f6feb;
+  color: #fff;
+  border-color: #1f6feb;
+}
+.btn-primary:hover { background: #185bcc; }
+
+/* ファイルボタン */
+.btn.file {
+  position: relative;
+  overflow: hidden;
+}
+.btn.file input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* 2分割レイアウト（ツールバーの下に全高で） */
+.split {
+  height: calc(100vh - 60px); /* ツールバー分を引く（高さは調整可） */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* 左：3Dキャンバス */
+.left3d {
+  position: relative;
+  background: #0e0e10;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.left3d canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 右：2Dプレビュー（2×2） */
+.right2d {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+}
+.thumb {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* スモールスクリーン対応（縦1列） */
+@media (max-width: 900px) {
+  .split {
+    grid-template-columns: 1fr;
+    grid-template-rows: 60vh 40vh;
+    height: auto;
+  }
+}

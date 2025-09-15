@@ -1,25 +1,52 @@
 <!doctype html>
-<html>
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Bag Mockup</title>
-    <style>
-      /* 余白ゼロで全画面表示 */
-      html, body, #root { height: 100%; }
-      body { margin: 0; }
-    </style>
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <!-- 上部ツールバー（常に最上段） -->
+    <header class="toolbar">
+      <div class="toolbar-row">
+        <label class="btn file">
+          データアップロード
+          <input id="file-upload" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.pdf,.ai" />
+        </label>
 
-    <button id="btn-cafe">カフェで見る</button>
-<div id="scene-out"
-     style="min-height:140px;padding:12px;background:#f6f6f6;position:relative;z-index:10;">
-</div>
-<script type="module" src="/src/scene/scene-ui.ts"></script>
+        <button id="btn-export" class="btn">PNG書き出し</button>
+        <button id="btn-cafe" class="btn btn-primary">カフェで見る</button>
 
-  
+        <!-- 必要なら：背景一括プレビュー用 -->
+        <button id="btn-refresh-previews" class="btn">右の背景プレビュー更新</button>
+      </div>
+    </header>
+
+    <!-- 左右2分割 -->
+    <main class="split">
+      <section class="left3d">
+        <canvas id="three-canvas"></canvas>
+        <!-- ここに既存の3D初期化スクリプトが描画 -->
+      </section>
+
+      <aside class="right2d">
+        <!-- 初期は白。カフェ等の更新時に置き換え -->
+        <div class="thumb">
+          <img id="prev-cafe" alt="カフェ背景プレビュー" />
+        </div>
+        <div class="thumb">
+          <img id="prev-shelf" alt="棚背景プレビュー" />
+        </div>
+        <div class="thumb">
+          <img id="prev-counter" alt="レジ横背景プレビュー" />
+        </div>
+        <div class="thumb">
+          <img id="prev-free" alt="自由枠（白 or 透過）" />
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/scene/scene-ui.ts"></script>
   </body>
 </html>
