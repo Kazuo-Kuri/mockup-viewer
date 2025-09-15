@@ -4,17 +4,64 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Bag Mockup</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      /* ベース */
+      html, body { height: 100%; }
+      body { margin: 0; font-family: system-ui, sans-serif; }
+
+      /* ツールバー */
+      .toolbar { height: 60px; display: grid; align-items: center; padding: 0 12px; border-bottom: 1px solid #eee; }
+      .toolbar-row { display: flex; gap: 8px; }
+      .btn { padding: 8px 12px; border: 1px solid #ddd; background: #fff; border-radius: 8px; cursor: pointer; }
+      .btn-primary { background: #2b6cb0; color:#fff; border-color:#2b6cb0; }
+      .btn.file { position: relative; overflow: hidden; }
+      .btn.file input[type=file]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+      /* 2分割レイアウト（ツールバーの下に全高で） */
+      .split {
+        height: calc(100vh - 60px);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        padding: 12px;
+        box-sizing: border-box;
+        background:#fafafa;
+      }
+
+      /* 左：3D（Reactがここにcanvasを生成） */
+      .left3d {
+        position: relative;
+        background: #0e0e10;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      /* ★ Reactのマウント先を全体に広げる */
+      .left3d > #root { width: 100%; height: 100%; }
+      /* threeのcanvasは Scene.jsx 側で append される */
+
+      /* 右：2Dプレビューの枠 */
+      .right2d {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-auto-rows: 1fr;
+        gap: 12px;
+      }
+      .thumb {
+        background:#fff; border:1px solid #eee; border-radius:10px;
+        display:grid; place-items:center; overflow:hidden;
+      }
+      .thumb img { max-width: 90%; max-height: 90%; display:block; }
+    </style>
   </head>
   <body>
-    <!-- 上部ツールバー（常に最上段） -->
+    <!-- 上部ツールバー -->
     <header class="toolbar">
       <div class="toolbar-row">
         <label class="btn file">
           データアップロード
           <input id="file-upload" type="file" accept=".png,.jpg,.jpeg,.webp,.svg,.pdf,.ai" />
         </label>
-
         <button id="btn-export" class="btn">PNG書き出し</button>
         <button id="btn-cafe" class="btn btn-primary">カフェで見る</button>
         <button id="btn-refresh-previews" class="btn">右の背景プレビュー更新</button>
@@ -24,12 +71,11 @@
     <!-- 左右2分割 -->
     <main class="split">
       <section class="left3d">
-        <!-- ★ 固定canvasは置かない。ReactがここにThreeのcanvasを生成します -->
-        <div id="root" style="width:100%; height:100%;"></div>
+        <!-- ★ 固定canvasは置かない。React がここに Three の canvas を生成 -->
+        <div id="root"></div>
       </section>
 
       <aside class="right2d">
-        <!-- 初期は白。生成時に置き換え -->
         <div class="thumb"><img id="prev-cafe"    alt="カフェ背景プレビュー" /></div>
         <div class="thumb"><img id="prev-shelf"   alt="棚背景プレビュー" /></div>
         <div class="thumb"><img id="prev-counter" alt="レジ横背景プレビュー" /></div>
@@ -37,13 +83,10 @@
       </aside>
     </main>
 
-    <!-- 3Dに干渉しない右パネル/ツールバー配線 -->
-    <script type="module" src="/src/scene/scene-ui.ts"></script>
+    <!-- React（3Dを #root に描画） -->
+    <script type="module" src="/src/main.jsx"></script>
 
-    <!-- ★ React エントリ（あなたの構成に合わせて .tsx / .jsx を指定） -->
-    <script type="module" src="/src/main.tsx"></script>
-    <!-- 例: Vite + React の標準構成なら main.tsx に
-         createRoot(document.getElementById('root')).render(<Scene />)
-         のように書かれているはずです -->
+    <!-- 右パネル／ボタンの配線。3Dには触れません -->
+    <script type="module" src="/src/scene/scene-ui.ts"></script>
   </body>
 </html>
