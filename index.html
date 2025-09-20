@@ -9,7 +9,7 @@
       html, body { height: 100%; }
       body { margin: 0; }
 
-      /* 2カラムの最小スタイル（PC=2列 / モバイル=1列） */
+      /* 2カラム（PC=2列 / モバイル=1列） */
       .page {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -23,6 +23,7 @@
       }
 
       .pane {
+        position: relative;            /* ← 追加：相対配置 */
         border: 1px solid #e5e5e5;
         border-radius: 8px;
         overflow: hidden;
@@ -30,17 +31,17 @@
         min-height: 320px;
       }
 
-      /* three.js 埋め込み用 */
+      /* three.js 埋め込み用（ペイン内にぴったり） */
       #root {
+        position: absolute;            /* ← 追加 */
+        inset: 0;                      /* ← 追加：上下左右0 */
         width: 100%;
         height: 100%;
-        background: #111; /* 読み込み前の背景だけ付与（任意） */
+        background: #111;              /* 読み込み前の背景だけ付与（任意） */
       }
 
       /* 出力側の軽い体裁 */
-      .right-pane-inner {
-        padding: 12px;
-      }
+      .right-pane-inner { padding: 12px; }
       #btn-cafe {
         appearance: none;
         border: 1px solid #cfcfcf;
@@ -72,20 +73,19 @@
       <!-- 左：3D -->
       <div class="pane">
         <div id="root"></div>
-          <script type="module" src="/src/main.jsx"></script>
       </div>
 
       <!-- 右：2D（ボタン＋出力） -->
       <div class="pane">
         <div class="right-pane-inner">
           <button id="btn-cafe">カフェで見る</button>
-          <div id="scene-out"
-     style="min-height:140px;padding:12px;background:#f6f6f6;position:relative;z-index:10;">
-</div>
-<script type="module" src="/src/scene/scene-ui.ts"></script>
+          <div id="scene-out"></div>
         </div>
       </div>
     </div>
 
+    <!-- スクリプトはペイン外（body末尾）で1回ずつ読み込む -->
+    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/scene/scene-ui.ts"></script>
   </body>
 </html>
