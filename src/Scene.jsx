@@ -171,8 +171,8 @@ export default function Scene() {
       const w = el.clientWidth  || el.width  || 1;
       const h = el.clientHeight || el.height || 1;
 
-      const offX =  offset.x * 0.5 * w;   // x>0 で視窓を右へ → 物体が左寄りに見える
-      const offY = -offset.y * 0.5 * h;   // y>0 で視窓を上へ → 物体が上寄りに見える
+      const offX =  offset.x * 0.8 * w;   // x>0 で視窓を右へ → 物体が左寄りに見える
+      const offY = -offset.y * 0.8 * h;   // y>0 で視窓を上へ → 物体が上寄りに見える
 
       if (offX !== 0 || offY !== 0) camera.setViewOffset(w, h, offX, offY, w, h);
       else                          camera.clearViewOffset();
@@ -503,7 +503,7 @@ export default function Scene() {
         }
 
         // ★ PrintArea を除外した箱で「中央合わせ + 左上寄せ」（オフアクシス）
-        frameByBox(centeredBox, 4.0, { x: 0.25, y: 0.4 });
+        frameByBox(centeredBox, 4.0, { x: 0.25, y: 0.1 });
 
         if (artTexURL && printMat) {
           const oldTex = printMat.map || null;
@@ -538,7 +538,7 @@ export default function Scene() {
         threeRef.current.printMesh = null;
 
         // 同じく左上寄せ（オフアクシス）
-        frameByBox(box, 4.0, { x: 0.25, y: 0.4 });
+        frameByBox(box, 4.0, { x: 0.25, y: 0.1 });
       }
     );
 
