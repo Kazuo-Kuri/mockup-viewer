@@ -162,8 +162,7 @@ export default function Scene() {
       return { box: newBox, size };
     }
 
-    // アスペクト対応でフレーミング + 画面左上寄せオフセット（offset: 0〜0.5 目安）
-    // offset.x>0, offset.y>0 で“被写体を左上”に置く（カメラを右・下へパン）
+    // アスペクト対応でフレーミング + 画面左上寄せ（pivot=モデル中心のまま）
     function frameByBox(box, pad = 1.6, offset = { x: 0, y: 0 }) {
       const { camera, controls } = threeRef.current;
 
@@ -172,6 +171,7 @@ export default function Scene() {
       box.getSize(size);
       box.getCenter(center);
 
+      // 回転の支点は常にモデル中心
       controls.target.copy(center);
 
       const halfV = THREE.MathUtils.degToRad(camera.fov * 0.5);
@@ -180,30 +180,32 @@ export default function Scene() {
       const distH = (size.x * 0.5) / Math.tan(halfH);
       const distance = Math.max(distV, distH) * pad;
 
-      // 現在の視線方向を維持して距離のみ調整
+      // 方向は維持して距離のみ調整
       const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
       camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
 
-      // 画面オフセット（ワールド換算してパン）
+      // 左上寄せのため「カメラだけ」パンする（target は動かさない）
       const viewH = 2 * Math.tan(halfV) * distance;
       const viewW = viewH * camera.aspect;
 
       const right = new THREE.Vector3();
       const up    = new THREE.Vector3();
-      const _z    = new THREE.Vector3();
+      const _z    = new THREE.Vector3(); // unused
       camera.matrixWorld.extractBasis(right, up, _z);
 
       const shift = new THREE.Vector3()
         .addScaledVector(right,  offset.x * (viewW * 0.5))  // 右へ
         .addScaledVector(up,    -offset.y * (viewH * 0.5)); // 下へ
+
       camera.position.add(shift);
-      controls.target.add(shift);
+      // controls.target は触らない → 回転の中心がモデル中央のまま
 
       camera.near = Math.max(0.01, distance / 100);
       camera.far  = Math.max(50, distance * 10);
       camera.updateProjectionMatrix();
       controls.update();
     }
+
 
     const pickPrintArea = (root) => {
       let printMesh = null;
