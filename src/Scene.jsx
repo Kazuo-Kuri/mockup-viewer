@@ -25,7 +25,7 @@ export default function Scene() {
     // --- renderer ---
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.domElement.id = "three-canvas";
-    renderer.domElement.style.display = "block"; // ← 追加
+    renderer.domElement.style.display = "block"; // 余白対策
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight, false); // コンテナ基準
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -119,6 +119,35 @@ export default function Scene() {
 
     const loader = new GLTFLoader();
     const glbUrl = new URL(`assets/models/flatbottombag.glb?v=${Date.now()}`, BASE).toString();
+
+    // 追加：オブジェクトを画面中央にフレーミングする
+    const frameObject = (object, pad = 1.2) => {
+      const box = new THREE.Box3().setFromObject(object);
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+
+      // ターゲットを中心へ
+      controls.target.copy(center);
+
+      // カメラ距離を計算（視野角から必要距離を算出）
+      const maxSize = Math.max(size.x, size.y, size.z);
+      const halfFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
+      const distance = (maxSize * pad) / Math.tan(halfFov);
+
+      // 現在の視線方向を維持したまま距離だけ調整
+      const dir = new THREE.Vector3()
+        .subVectors(camera.position, controls.target)
+        .normalize();
+      camera.position.copy(dir.multiplyScalar(distance).add(controls.target));
+
+      // クリップ面も調整
+      camera.near = Math.max(0.01, distance / 100);
+      camera.far  = distance * 10;
+      camera.updateProjectionMatrix();
+      controls.update();
+    };
 
     const pickPrintArea = (root) => {
       let printMesh = null;
@@ -382,6 +411,9 @@ export default function Scene() {
         tessellatePrintArea(printMesh, 2);
         shrinkwrapPrintArea(printMesh, root);
 
+        // ★ ここで中央にフレーミング
+        frameObject(root, 1.25);
+
         if (printMat) {
           printMat.transparent = false;
           printMat.alphaTest = 0.01;
@@ -423,6 +455,9 @@ export default function Scene() {
         threeRef.current.mesh = mesh;
         threeRef.current.printMat = null;
         threeRef.current.printMesh = null;
+
+        // フォールバック時もフレーミング
+        frameObject(mesh, 1.25);
       }
     );
 
@@ -542,8 +577,8 @@ export default function Scene() {
     }, "image/png");
   }
 
+  // ★ ペイン内にピッタリ張り付く
   return (
-    // ★ ラッパーとマウントを absolute + inset:0 に。
     <div style={{ position: "absolute", inset: 0 }}>
       <div ref={mountRef} style={{ position: "absolute", inset: 0, background: "#f8f9fb" }} />
       <div
