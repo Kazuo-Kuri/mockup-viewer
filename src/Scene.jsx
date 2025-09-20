@@ -171,41 +171,47 @@ export default function Scene() {
       box.getSize(size);
       box.getCenter(center);
 
-      // 回転の支点は常にモデル中心
+      // 回転の支点は常にモデル中心（ここを動かすと回転中心がズレます）
       controls.target.copy(center);
 
+      // 画面にちょうど収まる距離を算出（水平/垂直のどちらか厳しい方）
       const halfV = THREE.MathUtils.degToRad(camera.fov * 0.5);
       const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
       const distV = (size.y * 0.5) / Math.tan(halfV);
       const distH = (size.x * 0.5) / Math.tan(halfH);
       const distance = Math.max(distV, distH) * pad;
 
-      // 方向は維持して距離のみ調整
-      const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
-      camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
+      // いまの視線方向を維持したまま距離だけ調整
+      const dir = new THREE.Vector3()
+        .subVectors(camera.position, controls.target)
+        .normalize();
+      camera.position.copy(center).add(dir.multiplyScalar(distance));
 
-      // 左上寄せのため「カメラだけ」パンする（target は動かさない）
+      // —— ここが重要：姿勢を確定させてから right/up を計算 ——
+      camera.lookAt(controls.target);
+      camera.updateMatrixWorld(true);
+
+      // ビューフラスタムの見かけ幅/高さ（ワールド長さ）
       const viewH = 2 * Math.tan(halfV) * distance;
       const viewW = viewH * camera.aspect;
 
-      const right = new THREE.Vector3();
-      const up    = new THREE.Vector3();
-      const _z    = new THREE.Vector3(); // unused
-      camera.matrixWorld.extractBasis(right, up, _z);
+      // カメラの右/上ベクトル（ワールド座標）
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+      const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
 
+      // 左上寄せ（target は動かさず camera のみパン）
       const shift = new THREE.Vector3()
-        .addScaledVector(right,  offset.x * (viewW * 0.5))  // 右へ
-        .addScaledVector(up,    -offset.y * (viewH * 0.5)); // 下へ
-
+        .addScaledVector(right,  offset.x * (viewW * 0.5))   // +x で画面右へ
+        .addScaledVector(up,    -offset.y * (viewH * 0.5));  // +y で画面上へ
       camera.position.add(shift);
-      // controls.target は触らない → 回転の中心がモデル中央のまま
 
       camera.near = Math.max(0.01, distance / 100);
       camera.far  = Math.max(50, distance * 10);
       camera.updateProjectionMatrix();
+
+      // コントロール状態を最新の位置・方向で再同期
       controls.update();
     }
-
 
     const pickPrintArea = (root) => {
       let printMesh = null;
