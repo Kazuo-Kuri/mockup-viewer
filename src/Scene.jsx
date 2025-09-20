@@ -162,38 +162,64 @@ export default function Scene() {
       return { box: newBox, size };
     }
 
-    // ===== 投影オフセット適用（安全版：常に有効な矩形を渡す） =====
+    // ===== 投影オフセット適用（オフアクシス投影） =====
     function applyViewOffset(offset) {
       const { renderer, camera } = threeRef.current;
       if (!renderer || !camera) return;
 
-      // 描画バッファ（DPR考慮）の実サイズ
-      const buf = new THREE.Vector2();
-      renderer.getDrawingBufferSize(buf);
-      const fullW = Math.max(1, Math.round(buf.x));
-      const fullH = Math.max(1, Math.round(buf.y));
+      // 描画バッファの実サイズ（DPR を考慮）
+      const size = new THREE.Vector2();
+      renderer.getSize(size); // CSS px
+      const w = Math.max(1, Math.round(size.x * renderer.getPixelRatio()));
+      const h = Math.max(1, Math.round(size.y * renderer.getPixelRatio()));
 
-      // 入力正規化：±2 までに制限（効きを強くしたい時は VIEW_OFFSET_GAIN を上げる）
+      // [-1,1] を想定した寄せ量をピクセルに変換（0.8倍は効き目の上限）
       const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-      const nx = clamp(offset?.x ?? 0, -2, 2);
-      const ny = clamp(offset?.y ?? 0, -2, 2);
+      const x = clamp(offset.x || 0, -1, 1);
+      const y = clamp(offset.y || 0, -1, 1);
+      const offX = Math.round(0.8 * 0.5 * w * x);   // +で右へ（=見た目は左寄せ）
+      const offY = Math.round(-0.8 * 0.5 * h * y);  // +で上へ
 
-      // 目標ピクセル量（+x=左寄せ, +y=上寄せ）
-      const rawX = Math.round(0.5 * VIEW_OFFSET_GAIN * fullW * nx);
-      const rawY = Math.round(0.5 * VIEW_OFFSET_GAIN * fullH * ny);
-
-      // setViewOffset に渡す矩形を作る（負方向は右/下を削って表現）
-      const x = Math.max(0, rawX);
-      const y = Math.max(0, rawY);
-      const width  = fullW - Math.abs(rawX);
-      const height = fullH - Math.abs(rawY);
-
-      if (width > 0 && height > 0 && (rawX !== 0 || rawY !== 0)) {
-        camera.setViewOffset(fullW, fullH, x, y, width, height);
-      } else {
-        camera.clearViewOffset();
-      }
+      if (offX !== 0 || offY !== 0) camera.setViewOffset(w, h, offX, offY, w, h);
+      else                          camera.clearViewOffset();
       camera.updateProjectionMatrix();
+    }
+
+    // アスペクト対応でフレーミング + 画面寄せ（pivot=モデル中心のまま）
+    function frameByBox(box, pad = 1.6, offset = { x: 0, y: 0 }) {
+      const { camera, controls } = threeRef.current;
+
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+
+      // 回転の支点は常にモデル中心
+      controls.target.copy(center);
+
+      // 画面に収めるための距離
+      const halfV = THREE.MathUtils.degToRad(camera.fov * 0.5);
+      const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
+      const distV = (size.y * 0.5) / Math.tan(halfV);
+      const distH = (size.x * 0.5) / Math.tan(halfH);
+      const distance = Math.max(distV, distH) * pad;
+
+      // 視線方向を維持したまま距離だけ調整
+      const dir = new THREE.Vector3()
+        .subVectors(camera.position, controls.target)
+        .normalize();
+      camera.position.copy(center).add(dir.multiplyScalar(distance));
+      camera.lookAt(controls.target);
+      camera.updateMatrixWorld(true);
+
+      // ← カメラ位置は固定し、投影中心のみシフト
+      applyViewOffset(offset);
+      threeRef.current._viewOffset = offset; // リサイズ時に再適用
+
+      camera.near = Math.max(0.01, distance / 100);
+      camera.far  = Math.max(50, distance * 10);
+      camera.updateProjectionMatrix();
+      controls.update();
     }
 
     const pickPrintArea = (root) => {
@@ -482,7 +508,7 @@ export default function Scene() {
         }
 
         // ★ PrintArea を除外した箱で「中央合わせ + 左上寄せ」（オフアクシス）
-        frameByBox(centeredBox, 4.0, { x: 0.26, y: 0.0 });
+        frameByBox(centeredBox, 4.0, { x: 0.25, y: 0.0 });
 
         if (artTexURL && printMat) {
           const oldTex = printMat.map || null;
@@ -517,7 +543,7 @@ export default function Scene() {
         threeRef.current.printMesh = null;
 
         // 同じく左上寄せ（オフアクシス）
-        frameByBox(box, 4.0, { x: 0.26, y: 0.0 });
+        frameByBox(box, 4.0, { x: 0.25, y: 0.0 });
       }
     );
 
