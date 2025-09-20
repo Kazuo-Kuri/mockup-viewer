@@ -25,9 +25,9 @@ export default function Scene() {
     // --- renderer ---
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.domElement.id = "three-canvas";
-    renderer.domElement.style.display = "block"; // 余白対策
+    renderer.domElement.style.display = "block";
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(mount.clientWidth, mount.clientHeight, false); // コンテナ基準
+    renderer.setSize(mount.clientWidth, mount.clientHeight, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -162,7 +162,25 @@ export default function Scene() {
       return { box: newBox, size };
     }
 
-    // アスペクト対応でフレーミング + 画面左上寄せ（pivot=モデル中心のまま）
+    // ===== 投影オフセット適用（オフアクシス投影） =====
+    function applyViewOffset(offset) {
+      const { renderer, camera } = threeRef.current;
+      if (!renderer || !camera) return;
+
+      const el = renderer.domElement;
+      const w = el.clientWidth  || el.width  || 1;
+      const h = el.clientHeight || el.height || 1;
+
+      const offX =  offset.x * 0.5 * w;   // x>0 で視窓を右へ → 物体が左寄りに見える
+      const offY = -offset.y * 0.5 * h;   // y>0 で視窓を上へ → 物体が上寄りに見える
+
+      if (offX !== 0 || offY !== 0) camera.setViewOffset(w, h, offX, offY, w, h);
+      else                          camera.clearViewOffset();
+
+      camera.updateProjectionMatrix();
+    }
+
+    // アスペクト対応でフレーミング + 画面寄せ（pivot=モデル中心のまま）
     function frameByBox(box, pad = 1.6, offset = { x: 0, y: 0 }) {
       const { camera, controls } = threeRef.current;
 
@@ -171,45 +189,31 @@ export default function Scene() {
       box.getSize(size);
       box.getCenter(center);
 
-      // 回転の支点は常にモデル中心（ここを動かすと回転中心がズレます）
+      // 回転の支点は常にモデル中心
       controls.target.copy(center);
 
-      // 画面にちょうど収まる距離を算出（水平/垂直のどちらか厳しい方）
+      // 画面に収めるための距離
       const halfV = THREE.MathUtils.degToRad(camera.fov * 0.5);
       const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
       const distV = (size.y * 0.5) / Math.tan(halfV);
       const distH = (size.x * 0.5) / Math.tan(halfH);
       const distance = Math.max(distV, distH) * pad;
 
-      // いまの視線方向を維持したまま距離だけ調整
+      // 視線方向を維持したまま距離だけ調整
       const dir = new THREE.Vector3()
         .subVectors(camera.position, controls.target)
         .normalize();
       camera.position.copy(center).add(dir.multiplyScalar(distance));
-
-      // —— ここが重要：姿勢を確定させてから right/up を計算 ——
       camera.lookAt(controls.target);
       camera.updateMatrixWorld(true);
 
-      // ビューフラスタムの見かけ幅/高さ（ワールド長さ）
-      const viewH = 2 * Math.tan(halfV) * distance;
-      const viewW = viewH * camera.aspect;
-
-      // カメラの右/上ベクトル（ワールド座標）
-      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-      const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-
-      // 左上寄せ（target は動かさず camera のみパン）
-      const shift = new THREE.Vector3()
-        .addScaledVector(right,  offset.x * (viewW * 0.5))   // +x で画面右へ
-        .addScaledVector(up,    -offset.y * (viewH * 0.5));  // +y で画面上へ
-      camera.position.add(shift);
+      // ← カメラ位置は固定し、投影中心のみシフト
+      applyViewOffset(offset);
+      threeRef.current._viewOffset = offset; // リサイズ時に再適用
 
       camera.near = Math.max(0.01, distance / 100);
       camera.far  = Math.max(50, distance * 10);
       camera.updateProjectionMatrix();
-
-      // コントロール状態を最新の位置・方向で再同期
       controls.update();
     }
 
@@ -498,7 +502,7 @@ export default function Scene() {
           printMesh.frustumCulled = false;
         }
 
-        // ★ PrintArea を除外した箱で「中央合わせ + 左上寄せ」
+        // ★ PrintArea を除外した箱で「中央合わせ + 左上寄せ」（オフアクシス）
         frameByBox(centeredBox, 4.0, { x: 0.25, y: 0.25 });
 
         if (artTexURL && printMat) {
@@ -533,7 +537,7 @@ export default function Scene() {
         threeRef.current.printMat = null;
         threeRef.current.printMesh = null;
 
-        // 同じく左上寄せ
+        // 同じく左上寄せ（オフアクシス）
         frameByBox(box, 4.0, { x: 0.25, y: 0.25 });
       }
     );
@@ -547,6 +551,8 @@ export default function Scene() {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      // 画面寄せを再適用
+      applyViewOffset(threeRef.current._viewOffset || { x: 0, y: 0 });
     };
     const ro = new ResizeObserver(resizeToMount);
     ro.observe(mount);
