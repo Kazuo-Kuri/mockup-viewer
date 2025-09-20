@@ -178,7 +178,7 @@ export default function Scene() {
       const x = clamp(offset.x || 0, -1, 1);
       const y = clamp(offset.y || 0, -1, 1);
       const offX = Math.round(0.8 * 0.5 * w * x);   // +で右へ（=見た目は左寄せ）
-      const offY = Math.round(-0.8 * 0.5 * h * y);  // +で上へ
+      const offY = Math.round(0.8 * 0.5 * h * y);  // +で上へ
 
       if (offX !== 0 || offY !== 0) camera.setViewOffset(w, h, offX, offY, w, h);
       else                          camera.clearViewOffset();
