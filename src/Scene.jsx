@@ -136,8 +136,8 @@ export default function Scene() {
       return has ? box : new THREE.Box3().setFromObject(root);
     };
 
-    // ★ アスペクト考慮で縦横ともに収まる距離へ
-    const frameByBox = (box, pad = 1.25) => {
+    // ★ アスペクト考慮 + 構図オフセット（comp.x: 左寄せ, comp.y: 上寄せ）
+    const frameByBox = (box, pad = 1.25, comp = { x: 0, y: 0 }) => {
       const size = new THREE.Vector3();
       const center = new THREE.Vector3();
       box.getSize(size);
@@ -155,6 +155,24 @@ export default function Scene() {
         .subVectors(camera.position, controls.target)
         .normalize();
       camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
+
+      // 構図オフセット：画面幅/高さに対する割合でターゲット/カメラを平行移動
+      if (comp && (comp.x || comp.y)) {
+        camera.updateMatrixWorld(true);
+        const viewH = 2 * Math.tan(halfV) * distance;
+        const viewW = viewH * camera.aspect;
+
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+
+        // x>0 で「物体を左へ」/ y>0 で「物体を上へ」見せる
+        const offset = new THREE.Vector3()
+          .addScaledVector(right, 0.5 * viewW * comp.x)
+          .addScaledVector(up,   -0.5 * viewH * comp.y);
+
+        controls.target.add(offset);
+        camera.position.add(offset);
+      }
 
       camera.near = Math.max(0.01, distance / 100);
       camera.far  = Math.max(50, distance * 10);
@@ -424,9 +442,9 @@ export default function Scene() {
         tessellatePrintArea(printMesh, 2);
         shrinkwrapPrintArea(printMesh, root);
 
-        // ★ PrintAreaを除外した実寸の箱で中央にフレーミング
+        // ★ PrintAreaを除外した実寸箱で中央合わせ + 左上寄せ
         const box = getBoxExcluding(root);
-        frameByBox(box, 1.25);
+        frameByBox(box, 1.25, { x: 0.30, y: 0.18 });
 
         if (printMat) {
           printMat.transparent = false;
@@ -470,9 +488,9 @@ export default function Scene() {
         threeRef.current.printMat = null;
         threeRef.current.printMesh = null;
 
-        // ★ フォールバック時も中央合わせ
+        // ★ フォールバック時も左上寄せで
         const boxFallback = new THREE.Box3().setFromObject(mesh);
-        frameByBox(boxFallback, 1.25);
+        frameByBox(boxFallback, 1.25, { x: 0.30, y: 0.18 });
       }
     );
 
