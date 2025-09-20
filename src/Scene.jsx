@@ -25,9 +25,9 @@ export default function Scene() {
     // --- renderer ---
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.domElement.id = "three-canvas";
-    renderer.domElement.style.display = "block";
+    renderer.domElement.style.display = "block"; // 余白対策
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(mount.clientWidth, mount.clientHeight, false);
+    renderer.setSize(mount.clientWidth, mount.clientHeight, false); // コンテナ基準
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -120,25 +120,53 @@ export default function Scene() {
     const loader = new GLTFLoader();
     const glbUrl = new URL(`assets/models/flatbottombag.glb?v=${Date.now()}`, BASE).toString();
 
-    // === ユーティリティ：ボックス中心へ再配置（原点=モデル中心） ===
-    const recenterToBoxCenter = (object) => {
-      const preBox = new THREE.Box3().setFromObject(object);
-      const size   = new THREE.Vector3();
+    // ========= ユーティリティ =========
+
+    // PrintArea を除外してバウンディングボックスを作成
+    function getBoxExcluding(root) {
+      const box = new THREE.Box3();
+      const tmp = new THREE.Box3();
+      let hasAny = false;
+
+      root.traverse((o) => {
+        if (!o.isMesh) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        const isPrintArea = o.name === "PrintArea" || mats.some((m) => m?.name === "PrintArea");
+        if (isPrintArea) return;
+
+        o.updateWorldMatrix(true, false);
+        tmp.setFromObject(o);
+        if (!hasAny) {
+          box.copy(tmp);
+          hasAny = true;
+        } else {
+          box.union(tmp);
+        }
+      });
+
+      if (!hasAny) box.setFromObject(root); // 念のためフォールバック
+      return box;
+    }
+
+    // 渡された Box の中心が原点に来るよう root を再配置
+    function recenterByBox(root, box) {
       const center = new THREE.Vector3();
-      preBox.getSize(size);
-      preBox.getCenter(center);
+      const size   = new THREE.Vector3();
+      box.getCenter(center);
+      box.getSize(size);
 
-      // モデル全体を中心へ移動
-      object.position.sub(center);
-      object.updateMatrixWorld(true);
+      root.position.sub(center);         // 中心を (0,0,0) へ
+      root.updateMatrixWorld(true);
 
-      // 再計算後のボックスも返す
-      const box = new THREE.Box3().setFromObject(object);
-      return { box, size, center };
-    };
+      const newBox = new THREE.Box3().setFromObject(root); // 再計算
+      return { box: newBox, size };
+    }
 
-    // === アスペクト考慮のフレーミング ===
-    const frameByBox = (box, pad = 1.6) => {
+    // アスペクト対応でフレーミング + 画面左上寄せオフセット（offset: 0〜0.5 目安）
+    // offset.x>0, offset.y>0 で“被写体を左上”に置く（カメラを右・下へパン）
+    function frameByBox(box, pad = 1.6, offset = { x: 0, y: 0 }) {
+      const { camera, controls } = threeRef.current;
+
       const size = new THREE.Vector3();
       const center = new THREE.Vector3();
       box.getSize(size);
@@ -152,16 +180,30 @@ export default function Scene() {
       const distH = (size.x * 0.5) / Math.tan(halfH);
       const distance = Math.max(distV, distH) * pad;
 
-      const dir = new THREE.Vector3()
-        .subVectors(camera.position, controls.target)
-        .normalize();
+      // 現在の視線方向を維持して距離のみ調整
+      const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
       camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
+
+      // 画面オフセット（ワールド換算してパン）
+      const viewH = 2 * Math.tan(halfV) * distance;
+      const viewW = viewH * camera.aspect;
+
+      const right = new THREE.Vector3();
+      const up    = new THREE.Vector3();
+      const _z    = new THREE.Vector3();
+      camera.matrixWorld.extractBasis(right, up, _z);
+
+      const shift = new THREE.Vector3()
+        .addScaledVector(right,  offset.x * (viewW * 0.5))  // 右へ
+        .addScaledVector(up,    -offset.y * (viewH * 0.5)); // 下へ
+      camera.position.add(shift);
+      controls.target.add(shift);
 
       camera.near = Math.max(0.01, distance / 100);
       camera.far  = Math.max(50, distance * 10);
       camera.updateProjectionMatrix();
       controls.update();
-    };
+    }
 
     const pickPrintArea = (root) => {
       let printMesh = null;
@@ -382,6 +424,7 @@ export default function Scene() {
       mesh.geometry = geom;
     }
 
+    // ========= モデル読み込み =========
     loader.load(
       glbUrl,
       (gltf) => {
@@ -415,11 +458,10 @@ export default function Scene() {
           });
         });
 
-        // === 原点をモデル中心へ ===
-        const { box: centeredBox, size } = recenterToBoxCenter(root);
-
-        // 地面を“底面”の高さに合わせる（中心化で沈まないように）
-        ground.position.y = -size.y * 0.5;
+        // === PrintArea を除外した“実寸”で中心合わせ（原点=中心） ===
+        const box0 = getBoxExcluding(root);
+        const { box: centeredBox, size } = recenterByBox(root, box0);
+        ground.position.y = -size.y * 0.5; // 地面を底面高さへ
 
         bagGroup.add(root);
         threeRef.current.mesh = root;
@@ -428,9 +470,11 @@ export default function Scene() {
         threeRef.current.printMat = printMat;
         threeRef.current.printMesh = printMesh;
 
+        // PrintArea を密着化
         tessellatePrintArea(printMesh, 2);
         shrinkwrapPrintArea(printMesh, root);
 
+        // マテリアル安定設定
         if (printMat) {
           printMat.transparent = false;
           printMat.alphaTest = 0.01;
@@ -446,8 +490,8 @@ export default function Scene() {
           printMesh.frustumCulled = false;
         }
 
-        // ★ 中央へフレーミング（オフセット無し）
-        frameByBox(centeredBox, 1.7);
+        // ★ PrintArea を除外した箱で「中央合わせ + 左上寄せ」
+        frameByBox(centeredBox, 4.0, { x: 0.24, y: 0.22 });
 
         if (artTexURL && printMat) {
           const oldTex = printMat.map || null;
@@ -465,13 +509,13 @@ export default function Scene() {
       },
       undefined,
       () => {
+        // フォールバック（単純な箱）
         addFallbackLights();
         const geo = new THREE.BoxGeometry(0.13, 0.195, 0.045, 2, 3, 1);
         const mat = new THREE.MeshPhysicalMaterial({ color: "#cccccc", metalness: 0.0, roughness: 0.6 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.castShadow = mesh.receiveShadow = true;
 
-        // BoxGeometry は中心が原点なのでそのままでOK
         const box = new THREE.Box3().setFromObject(mesh);
         const size = new THREE.Vector3(); box.getSize(size);
         ground.position.y = -size.y * 0.5;
@@ -481,7 +525,8 @@ export default function Scene() {
         threeRef.current.printMat = null;
         threeRef.current.printMesh = null;
 
-        frameByBox(box, 1.7);
+        // 同じく左上寄せ
+        frameByBox(box, 4.0, { x: 0.24, y: 0.22 });
       }
     );
 
@@ -520,6 +565,7 @@ export default function Scene() {
     };
   }, [artTexURL]);
 
+  // ========= 画像差し替え & PNG出力 =========
   function onFile(file) {
     if (!file) return;
     const url = URL.createObjectURL(file);
@@ -601,7 +647,7 @@ export default function Scene() {
     }, "image/png");
   }
 
-  // ペイン内にピッタリ張り付く
+  // ★ ペイン内にピッタリ張り付く
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <div ref={mountRef} style={{ position: "absolute", inset: 0, background: "#f8f9fb" }} />
@@ -621,7 +667,7 @@ export default function Scene() {
       >
         <div>
           <label style={{ fontSize: 12, display: "block" }}>アート画像</label>
-        <input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} />
+          <input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} />
         </div>
         <button
           onClick={() => snapshot()}
