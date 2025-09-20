@@ -13,6 +13,9 @@ const TONE_EXPOSURE        = 1.25;
 const LIGHT_INTENSITY_BOOST= 2.2;
 const AMBIENT_FLOOR        = 0.18;
 
+// ★ 追加：寄せ量の増幅係数（必要に応じて 0.5〜2.0 などで調整）
+const VIEW_OFFSET_GAIN = 1.4;
+
 export default function Scene() {
   const mountRef = useRef(null);
   const threeRef = useRef({});
@@ -167,21 +170,24 @@ export default function Scene() {
       const { renderer, camera } = threeRef.current;
       if (!renderer || !camera) return;
 
-      // 描画バッファの実サイズ（DPR を考慮）
-      const size = new THREE.Vector2();
-      renderer.getSize(size); // CSS px
-      const w = Math.max(1, Math.round(size.x * renderer.getPixelRatio()));
-      const h = Math.max(1, Math.round(size.y * renderer.getPixelRatio()));
+      // 描画バッファ（DPR考慮済み）の実サイズを取得
+      const buf = new THREE.Vector2();
+      renderer.getDrawingBufferSize(buf);
+      const w = Math.max(1, Math.round(buf.x));
+      const h = Math.max(1, Math.round(buf.y));
 
-      // [-1,1] を想定した寄せ量をピクセルに変換（0.8倍は効き目の上限）
+      // 入力は [-2,2] にクリップ。正の y は「上寄せ」
       const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-      const x = clamp(offset.x || 0, -1, 1);
-      const y = clamp(offset.y || 0, -1, 1);
-      const offX = Math.round(0.8 * 0.5 * w * x);   // +で右へ（=見た目は左寄せ）
-      const offY = Math.round(-0.8 * 0.5 * h * y);  // +で上へ
+      const x = clamp(offset?.x ?? 0, -2, 2);
+      const y = clamp(offset?.y ?? 0, -2, 2);
+
+      // +x: 右へ（=見た目は左寄せ）/ +y: 上へ
+      const offX = Math.round(0.5 * VIEW_OFFSET_GAIN * w * x);
+      const offY = Math.round(-0.5 * VIEW_OFFSET_GAIN * h * y);
 
       if (offX !== 0 || offY !== 0) camera.setViewOffset(w, h, offX, offY, w, h);
       else                          camera.clearViewOffset();
+
       camera.updateProjectionMatrix();
     }
 
