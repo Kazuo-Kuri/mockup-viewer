@@ -120,31 +120,44 @@ export default function Scene() {
     const loader = new GLTFLoader();
     const glbUrl = new URL(`assets/models/flatbottombag.glb?v=${Date.now()}`, BASE).toString();
 
-    // 追加：オブジェクトを画面中央にフレーミングする
-    const frameObject = (object, pad = 1.2) => {
-      const box = new THREE.Box3().setFromObject(object);
+    // ★ PrintArea を除外してバウンディングを作成
+    const getBoxExcluding = (root) => {
+      const box = new THREE.Box3();
+      let has = false;
+      root.traverse((o) => {
+        if (!o.isMesh) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        const isPrint = mats.some((m) => m && m.name === "PrintArea");
+        if (!isPrint) {
+          box.expandByObject(o);
+          has = true;
+        }
+      });
+      return has ? box : new THREE.Box3().setFromObject(root);
+    };
+
+    // ★ アスペクト考慮で縦横ともに収まる距離へ
+    const frameByBox = (box, pad = 1.25) => {
       const size = new THREE.Vector3();
       const center = new THREE.Vector3();
       box.getSize(size);
       box.getCenter(center);
 
-      // ターゲットを中心へ
       controls.target.copy(center);
 
-      // カメラ距離を計算（視野角から必要距離を算出）
-      const maxSize = Math.max(size.x, size.y, size.z);
-      const halfFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
-      const distance = (maxSize * pad) / Math.tan(halfFov);
+      const halfV = THREE.MathUtils.degToRad(camera.fov * 0.5);
+      const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
+      const distV = (size.y * 0.5) / Math.tan(halfV);
+      const distH = (size.x * 0.5) / Math.tan(halfH);
+      const distance = Math.max(distV, distH) * pad;
 
-      // 現在の視線方向を維持したまま距離だけ調整
       const dir = new THREE.Vector3()
         .subVectors(camera.position, controls.target)
         .normalize();
-      camera.position.copy(dir.multiplyScalar(distance).add(controls.target));
+      camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
 
-      // クリップ面も調整
       camera.near = Math.max(0.01, distance / 100);
-      camera.far  = distance * 10;
+      camera.far  = Math.max(50, distance * 10);
       camera.updateProjectionMatrix();
       controls.update();
     };
@@ -411,8 +424,9 @@ export default function Scene() {
         tessellatePrintArea(printMesh, 2);
         shrinkwrapPrintArea(printMesh, root);
 
-        // ★ ここで中央にフレーミング
-        frameObject(root, 1.25);
+        // ★ PrintAreaを除外した実寸の箱で中央にフレーミング
+        const box = getBoxExcluding(root);
+        frameByBox(box, 1.25);
 
         if (printMat) {
           printMat.transparent = false;
@@ -456,8 +470,9 @@ export default function Scene() {
         threeRef.current.printMat = null;
         threeRef.current.printMesh = null;
 
-        // フォールバック時もフレーミング
-        frameObject(mesh, 1.25);
+        // ★ フォールバック時も中央合わせ
+        const boxFallback = new THREE.Box3().setFromObject(mesh);
+        frameByBox(boxFallback, 1.25);
       }
     );
 
