@@ -444,7 +444,7 @@ export default function Scene() {
 
         // ★ PrintAreaを除外した実寸箱で中央合わせ + 左上寄せ
         const box = getBoxExcluding(root);
-        frameByBox(box, 3.80, { x: 0.24, y: 0.22 });
+        frameByBox(box, 4.0, { x: 0.24, y: 0.22 });
 
         if (printMat) {
           printMat.transparent = false;
@@ -490,7 +490,7 @@ export default function Scene() {
 
         // ★ フォールバック時も左上寄せで
         const boxFallback = new THREE.Box3().setFromObject(mesh);
-        frameByBox(boxFallback, 3.80, { x: 0.24, y: 0.22 });
+        frameByBox(boxFallback, 4.0, { x: 0.24, y: 0.22 });
       }
     );
 
