@@ -137,7 +137,7 @@ export default function Scene() {
     };
 
     // ★ アスペクト考慮 + 構図オフセット（comp.x: 左寄せ, comp.y: 上寄せ）
-    const frameByBox = (box, pad = 1.25, comp = { x: 0, y: 0 }) => {
+    const frameByBox = (box, pad = 1.25, comp = { x: -0.3, y: -0.3 }) => {
       const size = new THREE.Vector3();
       const center = new THREE.Vector3();
       box.getSize(size);
@@ -490,7 +490,7 @@ export default function Scene() {
 
         // ★ フォールバック時も左上寄せで
         const boxFallback = new THREE.Box3().setFromObject(mesh);
-        frameByBox(boxFallback, 1.25, { x: 0.30, y: 0.18 });
+        frameByBox(boxFallback, 1.80, { x: 0.20, y: 0.10 });
       }
     );
 
