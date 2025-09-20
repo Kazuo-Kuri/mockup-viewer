@@ -25,9 +25,9 @@ export default function Scene() {
     // --- renderer ---
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.domElement.id = "three-canvas";
+    renderer.domElement.style.display = "block"; // ← 追加
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    // ★ コンテナ基準で初期サイズ
-    renderer.setSize(mount.clientWidth, mount.clientHeight, false);
+    renderer.setSize(mount.clientWidth, mount.clientHeight, false); // コンテナ基準
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -38,7 +38,12 @@ export default function Scene() {
 
     // --- scene / camera / controls ---
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, Math.max(1, mount.clientWidth) / Math.max(1, mount.clientHeight), 0.05, 50);
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      Math.max(1, mount.clientWidth) / Math.max(1, mount.clientHeight),
+      0.05,
+      50
+    );
     camera.position.set(0.45, 0.25, 0.6);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -538,9 +543,9 @@ export default function Scene() {
   }
 
   return (
-    // ★ ここを 100% に。親（#root / .pane）のサイズに完全追従
-    <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      <div ref={mountRef} style={{ width: "100%", height: "100%", background: "#f8f9fb" }} />
+    // ★ ラッパーとマウントを absolute + inset:0 に。
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div ref={mountRef} style={{ position: "absolute", inset: 0, background: "#f8f9fb" }} />
       <div
         style={{
           position: "absolute",
