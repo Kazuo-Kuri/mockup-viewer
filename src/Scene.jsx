@@ -167,16 +167,21 @@ export default function Scene() {
       const { renderer, camera } = threeRef.current;
       if (!renderer || !camera) return;
 
-      const el = renderer.domElement;
-      const w = el.clientWidth  || el.width  || 1;
-      const h = el.clientHeight || el.height || 1;
+      // 描画バッファの実サイズ（DPR を考慮）
+      const size = new THREE.Vector2();
+      renderer.getSize(size); // CSS px
+      const w = Math.max(1, Math.round(size.x * renderer.getPixelRatio()));
+      const h = Math.max(1, Math.round(size.y * renderer.getPixelRatio()));
 
-      const offX =  offset.x * 0.8 * w;   // x>0 で視窓を右へ → 物体が左寄りに見える
-      const offY = -offset.y * 0.8 * h;   // y>0 で視窓を上へ → 物体が上寄りに見える
+      // [-1,1] を想定した寄せ量をピクセルに変換（0.8倍は効き目の上限）
+      const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+      const x = clamp(offset.x || 0, -1, 1);
+      const y = clamp(offset.y || 0, -1, 1);
+      const offX = Math.round(0.8 * 0.5 * w * x);   // +で右へ（=見た目は左寄せ）
+      const offY = Math.round(-0.8 * 0.5 * h * y);  // +で上へ
 
       if (offX !== 0 || offY !== 0) camera.setViewOffset(w, h, offX, offY, w, h);
       else                          camera.clearViewOffset();
-
       camera.updateProjectionMatrix();
     }
 
