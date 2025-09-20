@@ -493,7 +493,7 @@ export default function Scene() {
         }
 
         // ★ PrintArea を除外した箱で「中央合わせ + 左上寄せ」
-        frameByBox(centeredBox, 4.0, { x: 0.3, y: 0.22 });
+        frameByBox(centeredBox, 4.0, { x: 0.35, y: 0.22 });
 
         if (artTexURL && printMat) {
           const oldTex = printMat.map || null;
@@ -528,7 +528,7 @@ export default function Scene() {
         threeRef.current.printMesh = null;
 
         // 同じく左上寄せ
-        frameByBox(box, 4.0, { x: 0.3, y: 0.22 });
+        frameByBox(box, 4.0, { x: 0.35, y: 0.22 });
       }
     );
 
