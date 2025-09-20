@@ -1,8 +1,13 @@
 // src/App.jsx
 import React, { Suspense, lazy } from "react";
 
+/**
+ * three を含む Scene は遅延読み込み。
+ * 初期ロードは React のみ → 体感を軽くし、バンドル警告も出づらくします。
+ */
 const Scene = lazy(() => import("./Scene.jsx"));
 
+/** 簡易エラーバウンダリ（任意だが本番運用で安心） */
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -12,6 +17,7 @@ class ErrorBoundary extends React.Component {
     return { hasError: true, message: String(err?.message ?? err) };
   }
   componentDidCatch(err, info) {
+    // ここでログ送信なども可
     console.error("[App] Scene load error:", err, info);
   }
   render() {
@@ -19,8 +25,8 @@ class ErrorBoundary extends React.Component {
       return (
         <div
           style={{
-            width: "100%",
-            height: "100%",
+            width: "100vw",
+            height: "100vh",
             display: "grid",
             placeItems: "center",
             background: "#fff",
@@ -45,12 +51,12 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  // ✅ 親（#root / .pane）のサイズにフィットさせる
+  // 画面いっぱいで Scene だけを表示（従来レイアウトを踏襲）
   return (
     <div
       style={{
-        width: "100%",     // ← 100vw ではなく 100%
-        height: "100%",    // ← 100vh ではなく 100%
+        width: "100vw",
+        height: "100vh",
         margin: 0,
         padding: 0,
         overflow: "hidden",

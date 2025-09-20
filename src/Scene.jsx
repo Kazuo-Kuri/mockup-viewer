@@ -4,15 +4,14 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-const USE_GLTF_LIGHTS = true;                 // Blenderのライトを優先
-const USE_HDR_ENV    = false;                 // 必要なら true にして反射/環境光を追加
-// ▼ サブパス対応（ドキュメントの baseURI を基準に解決）
+const USE_GLTF_LIGHTS = true;
+const USE_HDR_ENV    = false;
 const BASE           = (typeof document !== "undefined" ? document.baseURI : "/");
 const HDR_PATH       = new URL("assets/hdr/studio_small.hdr", BASE).toString();
 
-const TONE_EXPOSURE        = 1.25;            // 全体の露出
-const LIGHT_INTENSITY_BOOST= 2.2;             // glTFライトの見え強化
-const AMBIENT_FLOOR        = 0.18;            // 真っ黒回避の微弱アンビ
+const TONE_EXPOSURE        = 1.25;
+const LIGHT_INTENSITY_BOOST= 2.2;
+const AMBIENT_FLOOR        = 0.18;
 
 export default function Scene() {
   const mountRef = useRef(null);
@@ -27,7 +26,8 @@ export default function Scene() {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.domElement.id = "three-canvas";
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    // ★ コンテナ基準で初期サイズ
+    renderer.setSize(mount.clientWidth, mount.clientHeight, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -38,71 +38,56 @@ export default function Scene() {
 
     // --- scene / camera / controls ---
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 0.05, 50);
+    const camera = new THREE.PerspectiveCamera(45, Math.max(1, mount.clientWidth) / Math.max(1, mount.clientHeight), 0.05, 50);
     camera.position.set(0.45, 0.25, 0.6);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = false;
     controls.target.set(0, 0.12, 0);
 
-    // ========= ここから：矢印キーでパン =========
-    // キャンバスにフォーカスできるようにする（クリックで必ずフォーカス）
+    // ========= キー操作 =========
     const canvas = renderer.domElement;
     canvas.tabIndex = 0;
     canvas.style.outline = "none";
     const focusCanvas = () => canvas.focus();
     canvas.addEventListener("pointerdown", focusCanvas);
 
-    // ピクセル量 → ワールド量に変換して camera/target を平行移動
     const panByPixels = (dx, dy) => {
-      // 可視高さから 1px が何ワールド単位か求める
       const distance = camera.position.distanceTo(controls.target);
       const fovRad = (camera.fov * Math.PI) / 180;
       const viewHeight = 2 * Math.tan(fovRad / 2) * distance;
       const worldPerPixel = viewHeight / canvas.clientHeight;
 
-      // カメラの右(X)、上(Y)ベクトル
       const xAxis = new THREE.Vector3();
       const yAxis = new THREE.Vector3();
       const zAxis = new THREE.Vector3();
       camera.matrix.extractBasis(xAxis, yAxis, zAxis);
 
-      // 右(+X)へ dx、上(+Y)へ dy だが、画面座標は上が - なので符号調整
       xAxis.multiplyScalar(dx * worldPerPixel);
       yAxis.multiplyScalar(-dy * worldPerPixel);
 
       const pan = new THREE.Vector3().add(xAxis).add(yAxis);
-
       camera.position.add(pan);
       controls.target.add(pan);
       controls.update();
     };
 
-    const KEY_PAN = 60; // 移動量（ピクセル相当）
-
+    const KEY_PAN = 60;
     const onKeyPan = (e) => {
       const k = e.code || e.key;
       switch (k) {
         case "ArrowUp":
-        case "Up":
-          panByPixels(0, KEY_PAN); e.preventDefault(); e.stopPropagation(); break;   // ↑ 上へ
+        case "Up":    panByPixels(0,  KEY_PAN); e.preventDefault(); e.stopPropagation(); break;
         case "ArrowDown":
-        case "Down":
-          panByPixels(0, -KEY_PAN); e.preventDefault(); e.stopPropagation(); break;  // ↓ 下へ
+        case "Down":  panByPixels(0, -KEY_PAN); e.preventDefault(); e.stopPropagation(); break;
         case "ArrowLeft":
-        case "Left":
-          panByPixels(KEY_PAN, 0); e.preventDefault(); e.stopPropagation(); break;   // ← 左へ
+        case "Left":  panByPixels( KEY_PAN, 0); e.preventDefault(); e.stopPropagation(); break;
         case "ArrowRight":
-        case "Right":
-          panByPixels(-KEY_PAN, 0); e.preventDefault(); e.stopPropagation(); break;  // → 右へ
-        default:
-          return;
+        case "Right": panByPixels(-KEY_PAN, 0); e.preventDefault(); e.stopPropagation(); break;
+        default: return;
       }
     };
-
-    // 入力欄にフォーカスがあっても確実に受け取れるよう window/capture に登録
     window.addEventListener("keydown", onKeyPan, { capture: true });
-    // ========= ここまで =========
 
     // --- environment (任意) ---
     let pmrem = null;
@@ -111,7 +96,6 @@ export default function Scene() {
       new RGBELoader().load(HDR_PATH, (hdr) => {
         const env = pmrem.fromEquirectangular(hdr).texture;
         scene.environment = env;
-        // scene.background = env; // 必要なら背景もHDRに
       });
     }
 
@@ -129,7 +113,6 @@ export default function Scene() {
     scene.add(bagGroup);
 
     const loader = new GLTFLoader();
-    // ▼ サブパス対応（BASE 基準で glb を解決）
     const glbUrl = new URL(`assets/models/flatbottombag.glb?v=${Date.now()}`, BASE).toString();
 
     const pickPrintArea = (root) => {
@@ -150,30 +133,22 @@ export default function Scene() {
 
     const enableGltfLights = (root) => {
       let found = false;
-
-      // 微弱アンビを常設（真っ黒回避）
       scene.add(new THREE.AmbientLight(0xffffff, AMBIENT_FLOOR));
-
       root.traverse((o) => {
         if (!o.isLight) return;
         found = true;
-
         o.castShadow = true;
         if (o.shadow?.mapSize) {
           o.shadow.mapSize.set(1024, 1024);
           o.shadow.bias = -0.0002;
           o.shadow.normalBias = 0.02;
         }
-        // three だと glTF より暗く見えやすいので少し増幅
         if (typeof o.intensity === "number") o.intensity *= LIGHT_INTENSITY_BOOST;
-
         if (o.isPointLight || o.isSpotLight) {
-          o.distance = 0; // 無限到達で減衰だけ効かせる
-          o.decay = 2;
+          o.distance = 0; o.decay = 2;
           if (o.isSpotLight) o.penumbra = Math.min(0.6, o.penumbra ?? 0.3);
         }
       });
-
       return found;
     };
 
@@ -187,7 +162,6 @@ export default function Scene() {
       scene.add(new THREE.AmbientLight(0xffffff, AMBIENT_FLOOR), hemi, dir);
     };
 
-    // --- UV変換を新テクスチャへ引き継ぐ（UVフィットのみの処理） ---
     function copyTextureTransform(fromTex, toTex) {
       if (!fromTex || !toTex) return;
       toTex.wrapS = fromTex.wrapS;
@@ -204,11 +178,8 @@ export default function Scene() {
       toTex.needsUpdate = true;
     }
 
-    // === 追加：PrintArea を袋表面へ“密着”させる（最近傍三角形への投影） ===
     function shrinkwrapPrintArea(printMesh, targetRoot) {
       if (!printMesh) return;
-
-      // 投影先（PrintArea 自身は除外）
       const targets = [];
       targetRoot.traverse((o) => {
         if (o.isMesh && o !== printMesh) targets.push(o);
@@ -218,12 +189,10 @@ export default function Scene() {
       const geom = printMesh.geometry;
       if (!geom || !geom.attributes?.position) return;
 
-      // PrintArea のワールドAABBを作り、周囲に少し余裕を持たせる
       geom.computeBoundingBox();
       printMesh.updateWorldMatrix(true, false);
       const printBoxWorld = geom.boundingBox.clone().applyMatrix4(printMesh.matrixWorld).expandByScalar(0.15);
 
-      // 近傍三角形のリストをワールド座標で作成（AABBが重なるものだけ）
       const triList = [];
       const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
       const tri = new THREE.Triangle(a, b, c);
@@ -252,15 +221,12 @@ export default function Scene() {
 
           triBox.setFromPoints([a, b, c]);
           if (triBox.intersectsBox(printBoxWorld)) {
-            triList.push({
-              tri: new THREE.Triangle(a.clone(), b.clone(), c.clone()),
-            });
+            triList.push({ tri: new THREE.Triangle(a.clone(), b.clone(), c.clone()) });
           }
         }
       });
       if (!triList.length) return;
 
-      // 各頂点を最近傍三角形の最近傍点へ移動
       const pos = geom.attributes.position;
       const worldToLocal = new THREE.Matrix4().copy(printMesh.matrixWorld).invert();
       const vWorld = new THREE.Vector3();
@@ -281,14 +247,12 @@ export default function Scene() {
           if (d2 < minD2) {
             minD2 = d2;
             bestPoint = closest.clone();
-            // 三角形法線（ワールド）
             t.getNormal(faceNormal);
             bestNormal = faceNormal.clone().normalize();
           }
         }
 
         if (bestPoint) {
-          // ほんの少し外側へ（Z-fighting回避）
           bestPoint.addScaledVector(bestNormal, 0.0005);
           bestPoint.applyMatrix4(worldToLocal);
           pos.setXYZ(i, bestPoint.x, bestPoint.y, bestPoint.z);
@@ -300,12 +264,9 @@ export default function Scene() {
       geom.computeBoundingBox();
       geom.computeBoundingSphere();
     }
-    // === 追加ここまで ===
 
-    // === 追加：低ポリ PrintArea を細分化して密着度を上げる（4分割×n回） ===
     function tessellatePrintArea(mesh, iterations = 2) {
       if (!mesh || !mesh.geometry) return;
-
       const gCheck = mesh.geometry;
       const triCount = (gCheck.index ? gCheck.index.count : gCheck.attributes.position.count) / 3;
       if (triCount > 2000) return;
@@ -372,25 +333,20 @@ export default function Scene() {
 
       mesh.geometry = geom;
     }
-    // === 追加ここまで ===
 
     loader.load(
       glbUrl,
       (gltf) => {
         const root = gltf.scene;
 
-        // ライト
         const hasLights = USE_GLTF_LIGHTS ? enableGltfLights(root) : false;
         if (!hasLights) addFallbackLights();
 
-        // メッシュとマテリアルの最小限の調整（置換はしない）
         root.traverse((o) => {
           if (!o.isMesh) return;
-
           o.castShadow = true;
           o.receiveShadow = true;
 
-          // 頂点カラーが乗って黒くなるモデルへの対策（必要時のみ）
           if (o.geometry?.attributes?.color) {
             o.geometry.deleteAttribute?.("color");
           }
@@ -411,20 +367,17 @@ export default function Scene() {
           });
         });
 
+        threeRef.current.mesh = root;
         bagGroup.add(root);
 
-        // PrintArea の参照を保持（画像差し替え用）
         const { printMesh, printMat } = pickPrintArea(root);
-        threeRef.current.mesh = root;
         threeRef.current.printMat = printMat;
         threeRef.current.printMesh = printMesh;
 
-        // 追加：PrintArea を細分化してから袋表面へ密着
         tessellatePrintArea(printMesh, 2);
         shrinkwrapPrintArea(printMesh, root);
 
         if (printMat) {
-          // 安定描画
           printMat.transparent = false;
           printMat.alphaTest = 0.01;
           printMat.depthTest = true;
@@ -439,7 +392,6 @@ export default function Scene() {
           printMesh.frustumCulled = false;
         }
 
-        // すでにユーザー画像が選択されていれば適用（UV/transform 引き継ぎ）
         if (artTexURL && printMat) {
           const oldTex = printMat.map || null;
           new THREE.TextureLoader().load(artTexURL, (tex) => {
@@ -456,7 +408,6 @@ export default function Scene() {
       },
       undefined,
       () => {
-        // GLB 読み込み失敗時も暗転しないフォールバック
         addFallbackLights();
         const geo = new THREE.BoxGeometry(0.13, 0.195, 0.045, 2, 3, 1);
         const mat = new THREE.MeshPhysicalMaterial({ color: "#cccccc", metalness: 0.0, roughness: 0.6 });
@@ -472,13 +423,17 @@ export default function Scene() {
 
     threeRef.current = { renderer, scene, camera, controls, bagGroup };
 
-    // resize
-    const onResize = () => {
-      renderer.setSize(mount.clientWidth, mount.clientHeight);
-      camera.aspect = mount.clientWidth / mount.clientHeight;
+    // === リサイズ（コンテナ基準 & ResizeObserverで追従） ===
+    const resizeToMount = () => {
+      const w = Math.max(1, mount.clientWidth);
+      const h = Math.max(1, mount.clientHeight);
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
     };
-    window.addEventListener("resize", onResize);
+    const ro = new ResizeObserver(resizeToMount);
+    ro.observe(mount);
+    window.addEventListener("resize", resizeToMount);
 
     // loop
     let raf;
@@ -491,7 +446,8 @@ export default function Scene() {
 
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", onResize);
+      ro.disconnect();
+      window.removeEventListener("resize", resizeToMount);
       canvas.removeEventListener("pointerdown", focusCanvas);
       window.removeEventListener("keydown", onKeyPan, { capture: true });
       mount.removeChild(renderer.domElement);
@@ -500,7 +456,6 @@ export default function Scene() {
     };
   }, [artTexURL]);
 
-  // 画像アップロード（PrintArea差し替え：UV/トランスフォームを引き継ぐ）
   function onFile(file) {
     if (!file) return;
     const url = URL.createObjectURL(file);
@@ -544,19 +499,16 @@ export default function Scene() {
     });
   }
 
-  // 高解像度PNGを書き出す（表示はそのまま）
   function snapshot(scale = 2, bgColor = "#ffffff") {
     const { renderer, scene, camera } = threeRef.current;
     if (!renderer || !scene || !camera) return;
 
-    // 出力サイズ（表示キャンバス基準）
     const cw = renderer.domElement.clientWidth;
     const ch = renderer.domElement.clientHeight;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const width  = Math.max(2, Math.floor(cw * dpr * scale));
     const height = Math.max(2, Math.floor(ch * dpr * scale));
 
-    // 書き出し専用レンダラ（読み出し保証）
     const exp = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     exp.setSize(width, height, false);
     exp.outputColorSpace    = renderer.outputColorSpace;
@@ -565,16 +517,13 @@ export default function Scene() {
     exp.shadowMap.enabled   = renderer.shadowMap.enabled;
     exp.shadowMap.type      = renderer.shadowMap.type;
 
-    // 背景色（透過にしたいなら bgColor を null で呼ぶ）
     if (bgColor == null) exp.setClearColor(0x000000, 0);
     else                 exp.setClearColor(bgColor, 1);
 
-    // カメラを複製してアスペクトを合わせる（表示側に影響させない）
     const cam = camera.clone();
     cam.aspect = width / height;
     cam.updateProjectionMatrix();
 
-    // 1フレーム描画 → Blob で保存
     exp.render(scene, cam);
     exp.domElement.toBlob((blob) => {
       if (!blob) { exp.dispose(); return; }
@@ -589,8 +538,9 @@ export default function Scene() {
   }
 
   return (
-    <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
-      <div ref={mountRef} style={{ width: "100%", height: "80vh", background: "#f8f9fb" }} />
+    // ★ ここを 100% に。親（#root / .pane）のサイズに完全追従
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div ref={mountRef} style={{ width: "100%", height: "100%", background: "#f8f9fb" }} />
       <div
         style={{
           position: "absolute",
