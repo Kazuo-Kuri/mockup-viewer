@@ -23,7 +23,7 @@
       }
 
       .pane {
-        position: relative;            /* ← 追加：相対配置 */
+        position: relative;
         border: 1px solid #e5e5e5;
         border-radius: 8px;
         overflow: hidden;
@@ -33,15 +33,32 @@
 
       /* three.js 埋め込み用（ペイン内にぴったり） */
       #root {
-        position: absolute;            /* ← 追加 */
-        inset: 0;                      /* ← 追加：上下左右0 */
+        position: absolute;
+        inset: 0;
         width: 100%;
         height: 100%;
-        background: #111;              /* 読み込み前の背景だけ付与（任意） */
+        background: #111; /* 読み込み前の背景（任意） */
+      }
+
+      /* 右カラム：上下2分割 */
+      .pane-grid {
+        display: grid;
+        grid-template-rows: 1fr 1fr; /* 等分。上を広くしたければ 3fr 2fr などに */
+        gap: 12px;
+        padding: 12px;       /* 外枠(pane)の内側に余白 */
+        box-sizing: border-box;
+        overflow: auto;      /* モバイルで縦に伸びるときの保険 */
+      }
+      .subpane {
+        border: 1px solid #efefef;
+        border-radius: 8px;
+        padding: 12px;
+        box-sizing: border-box;
+        background: #fafafa;
+        overflow: auto;
       }
 
       /* 出力側の軽い体裁 */
-      .right-pane-inner { padding: 12px; }
       #btn-cafe {
         appearance: none;
         border: 1px solid #cfcfcf;
@@ -59,12 +76,21 @@
         background: #f6f6f6;
         position: relative;
         z-index: 10;
+        border-radius: 6px;
       }
       #scene-out img {
         max-width: 100%;
         height: auto;
         display: block;
         border-radius: 6px;
+      }
+
+      /* 下段のダミー領域（必要に応じて置き換え） */
+      #right-bottom {
+        display: grid;
+        place-items: center;
+        color: #777;
+        font-size: 14px;
       }
     </style>
   </head>
@@ -75,12 +101,18 @@
         <div id="root"></div>
       </div>
 
-      <!-- 右：2D（ボタン＋出力） -->
-      <div class="pane">
-        <div class="right-pane-inner">
+      <!-- 右：上下2カラム -->
+      <div class="pane pane-grid">
+        <!-- 上段：ボタン＋出力 -->
+        <section class="subpane">
           <button id="btn-cafe">カフェで見る</button>
           <div id="scene-out"></div>
-        </div>
+        </section>
+
+        <!-- 下段：予備（アップロードUIやログなどを配置） -->
+        <section class="subpane" id="right-bottom">
+          下段エリア（必要なUIをここに）
+        </section>
       </div>
     </div>
 
