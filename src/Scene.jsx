@@ -685,6 +685,12 @@ export default function Scene() {
     for (const p of VIEW_PROFILES) exportBagView(p);
   }
 
+  // === 便利フック: 開発中いつでも手動で再生成できるようにする ===
+  useEffect(() => {
+    window.forceExportAllViews = () => exportAllViews();
+    return () => { delete window.forceExportAllViews; };
+  }, []);
+
   // ========= 画像差し替え & PNG出力 =========
   function onFile(file) {
     if (!file) return;
