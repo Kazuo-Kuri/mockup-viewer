@@ -9,9 +9,33 @@ const USE_HDR_ENV    = false;
 const BASE           = (typeof document !== "undefined" ? document.baseURI : "/");
 const HDR_PATH       = new URL("assets/hdr/studio_small.hdr", BASE).toString();
 
-const TONE_EXPOSURE        = 1.25;
-const LIGHT_INTENSITY_BOOST= 2.2;
-const AMBIENT_FLOOR        = 0.18;
+const TONE_EXPOSURE         = 1.25;
+const LIGHT_INTENSITY_BOOST = 2.2;
+const AMBIENT_FLOOR         = 0.18;
+
+/**
+ * 右カラム用 固定ビュー定義（ここだけ触れば角度・縮尺を調整できます）
+ * - position: カメラ位置
+ * - target  : 注視点
+ * - fovDeg  : 縦FOV（度）
+ * - out     : 書き出しPNGのピクセルサイズ
+ */
+const VIEW_PROFILES = [
+  {
+    name: "cafe",                          // 右上
+    position: { x: 0.38, y: 0.28, z: 0.62 },
+    target  : { x: 0.00, y: 0.05, z: 0.00 },
+    fovDeg  : 42,
+    out     : { width: 1200, height: 900 },
+  },
+  {
+    name: "shelf",                         // 右下
+    position: { x: 0.25, y: 0.26, z: 0.70 },
+    target  : { x: 0.00, y: 0.04, z: 0.00 },
+    fovDeg  : 48,
+    out     : { width: 1200, height: 900 },
+  },
+];
 
 export default function Scene() {
   const mountRef = useRef(null);
@@ -177,8 +201,8 @@ export default function Scene() {
       const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
       const x = clamp(offset.x || 0, -1, 1);
       const y = clamp(offset.y || 0, -1, 1);
-      const offX = Math.round(0.8 * 0.5 * w * x);   // +で右へ（=見た目は左寄せ）
-      const offY = Math.round(0.8 * 0.5 * h * y);  // +で上へ
+      const offX = Math.round(0.8 * 0.5 * w * x);
+      const offY = Math.round(0.8 * 0.5 * h * y);
 
       if (offX !== 0 || offY !== 0) camera.setViewOffset(w, h, offX, offY, w, h);
       else                          camera.clearViewOffset();
@@ -194,17 +218,14 @@ export default function Scene() {
       box.getSize(size);
       box.getCenter(center);
 
-      // 回転の支点は常にモデル中心
       controls.target.copy(center);
 
-      // 画面に収めるための距離
       const halfV = THREE.MathUtils.degToRad(camera.fov * 0.5);
       const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
       const distV = (size.y * 0.5) / Math.tan(halfV);
       const distH = (size.x * 0.5) / Math.tan(halfH);
       const distance = Math.max(distV, distH) * pad;
 
-      // 視線方向を維持したまま距離だけ調整
       const dir = new THREE.Vector3()
         .subVectors(camera.position, controls.target)
         .normalize();
@@ -212,9 +233,8 @@ export default function Scene() {
       camera.lookAt(controls.target);
       camera.updateMatrixWorld(true);
 
-      // ← カメラ位置は固定し、投影中心のみシフト
       applyViewOffset(offset);
-      threeRef.current._viewOffset = offset; // リサイズ時に再適用
+      threeRef.current._viewOffset = offset;
 
       camera.near = Math.max(0.01, distance / 100);
       camera.far  = Math.max(50, distance * 10);
@@ -478,7 +498,7 @@ export default function Scene() {
         // === PrintArea を除外した“実寸”で中心合わせ（原点=中心） ===
         const box0 = getBoxExcluding(root);
         const { box: centeredBox, size } = recenterByBox(root, box0);
-        ground.position.y = -size.y * 0.5; // 地面を底面高さへ
+        ground.position.y = -size.y * 0.5;
 
         bagGroup.add(root);
         threeRef.current.mesh = root;
@@ -507,9 +527,10 @@ export default function Scene() {
           printMesh.frustumCulled = false;
         }
 
-        // ★ PrintArea を除外した箱で「中央合わせ + 左上寄せ」（オフアクシス）
-        frameByBox(centeredBox,2.5, { x: 0.31, y: 0.4 });
+        // 左上寄せ（オフアクシス）
+        frameByBox(centeredBox, 2.5, { x: 0.31, y: 0.4 });
 
+        // 初期に artTexURL が既にある場合の適用
         if (artTexURL && printMat) {
           const oldTex = printMat.map || null;
           new THREE.TextureLoader().load(artTexURL, (tex) => {
@@ -522,10 +543,9 @@ export default function Scene() {
             printMat.map = tex;
             printMat.needsUpdate = true;
 
-            // ← 既存 artTexURL 適用完了時も通知
-            try {
-              window.dispatchEvent(new CustomEvent("bag:art-loaded", { detail: { url: artTexURL } }));
-            } catch {}
+            // 右カラムへ通知 & 固定ビューを書き出し
+            try { window.dispatchEvent(new CustomEvent("bag:art-loaded", { detail: { url: artTexURL } })); } catch {}
+            exportAllViews();
           });
         }
       },
@@ -547,12 +567,11 @@ export default function Scene() {
         threeRef.current.printMat = null;
         threeRef.current.printMesh = null;
 
-        // 同じく左上寄せ（オフアクシス）
         frameByBox(box, 2.5, { x: 0.31, y: 0.4 });
       }
     );
 
-    threeRef.current = { renderer, scene, camera, controls, bagGroup };
+    threeRef.current = { renderer, scene, camera, controls, bagGroup, ground };
 
     // === リサイズ（コンテナ基準 & ResizeObserverで追従） ===
     const resizeToMount = () => {
@@ -561,7 +580,6 @@ export default function Scene() {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      // 画面寄せを再適用
       applyViewOffset(threeRef.current._viewOffset || { x: 0, y: 0 });
     };
     const ro = new ResizeObserver(resizeToMount);
@@ -588,6 +606,80 @@ export default function Scene() {
       if (pmrem) pmrem.dispose();
     };
   }, [artTexURL]);
+
+  // ======== 固定ビューの袋PNGを書き出す（透過） ========
+  function exportBagView(profile) {
+    const { scene, camera, renderer, controls, ground } = threeRef.current;
+    if (!scene || !camera || !renderer) return;
+
+    // 現状態の退避
+    const old = {
+      camPos: camera.position.clone(),
+      camQuat: camera.quaternion.clone(),
+      camFov: camera.fov,
+      camAspect: camera.aspect,
+      near: camera.near,
+      far: camera.far,
+      viewOffset: camera.view || null,
+      target: controls?.target?.clone?.() || new THREE.Vector3(),
+      groundVisible: ground?.visible ?? true,
+    };
+
+    // 透明背景の一時レンダラー
+    const w = Math.max(2, profile.out?.width  ?? 1200);
+    const h = Math.max(2, profile.out?.height ?? 900);
+    const exp = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    exp.setSize(w, h, false);
+    exp.outputColorSpace    = renderer.outputColorSpace;
+    exp.toneMapping         = renderer.toneMapping;
+    exp.toneMappingExposure = renderer.toneMappingExposure;
+    exp.shadowMap.enabled   = renderer.shadowMap.enabled;
+    exp.shadowMap.type      = renderer.shadowMap.type;
+    exp.setClearColor(0x000000, 0);
+
+    // 固定アングルにセット（ユーザー操作に依存しない）
+    camera.clearViewOffset?.();
+    camera.fov = profile.fovDeg ?? 45;
+    camera.aspect = w / h;
+    camera.position.set(profile.position.x, profile.position.y, profile.position.z);
+    if (controls && controls.target) controls.target.set(profile.target.x, profile.target.y, profile.target.z);
+    camera.lookAt(profile.target.x, profile.target.y, profile.target.z);
+    camera.near = 0.01;
+    camera.far  = 50;
+    camera.updateProjectionMatrix();
+
+    // 地面は非表示（袋だけ）
+    if (ground) ground.visible = false;
+
+    // 描画
+    exp.render(scene, camera);
+
+    // PNG化して通知
+    const dataUrl = exp.domElement.toDataURL("image/png");
+    try {
+      window.dispatchEvent(new CustomEvent("bag:rendered", { detail: { dataUrl, view: profile.name } }));
+    } catch {}
+
+    // 状態復帰
+    if (ground) ground.visible = old.groundVisible;
+    camera.position.copy(old.camPos);
+    camera.quaternion.copy(old.camQuat);
+    camera.fov = old.camFov;
+    camera.aspect = old.camAspect;
+    camera.near = old.near;
+    camera.far  = old.far;
+    camera.updateProjectionMatrix();
+    if (controls && controls.target) {
+      controls.target.copy(old.target);
+      controls.update?.();
+    }
+
+    exp.dispose();
+  }
+
+  function exportAllViews() {
+    for (const p of VIEW_PROFILES) exportBagView(p);
+  }
 
   // ========= 画像差し替え & PNG出力 =========
   function onFile(file) {
@@ -631,10 +723,9 @@ export default function Scene() {
       printMat.polygonOffsetUnits = -1;
       printMat.needsUpdate = true;
 
-      // ← ユーザーアップロード適用完了を通知（右カラムが自動合成）
-      try {
-        window.dispatchEvent(new CustomEvent("bag:art-loaded", { detail: { url } }));
-      } catch {}
+      // 右カラムへ通知 & 固定ビューを書き出し
+      try { window.dispatchEvent(new CustomEvent("bag:art-loaded", { detail: { url } })); } catch {}
+      exportAllViews();
     });
   }
 
