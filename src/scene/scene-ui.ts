@@ -83,7 +83,7 @@ const PROFILES: Record<"cafe" | "shelf", Profile> = {
     bgUrl: "/scenes/shelf.jpg",          // public/scenes/shelf.jpg
     outEl: $("#right-bottom"),           // 右下
     canvasW: 1600,
-    bag: { x: 220, y: 280, h: 1260 },     // ★ ここも自由に
+    bag: { x: 120, y: 80, h: 1260 },     // ★ ここも自由に
   },
 };
 
