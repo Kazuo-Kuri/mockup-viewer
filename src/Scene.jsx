@@ -521,6 +521,11 @@ export default function Scene() {
 
             printMat.map = tex;
             printMat.needsUpdate = true;
+
+            // ← 既存 artTexURL 適用完了時も通知
+            try {
+              window.dispatchEvent(new CustomEvent("bag:art-loaded", { detail: { url: artTexURL } }));
+            } catch {}
           });
         }
       },
@@ -625,6 +630,11 @@ export default function Scene() {
       printMat.polygonOffsetFactor = -1;
       printMat.polygonOffsetUnits = -1;
       printMat.needsUpdate = true;
+
+      // ← ユーザーアップロード適用完了を通知（右カラムが自動合成）
+      try {
+        window.dispatchEvent(new CustomEvent("bag:art-loaded", { detail: { url } }));
+      } catch {}
     });
   }
 
