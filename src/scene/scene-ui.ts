@@ -85,14 +85,14 @@ const PROFILES: Record<"cafe" | "shelf", Profile> = {
     bgUrl: "/scenes/cafe.jpg",           // public/scenes/cafe.jpg
     outEl: $("#scene-out"),              // 右上
     canvasW: 1600,                       // 出力横幅（重い時は下げる）
-    bag: { x: 80, y: 50, h: 1280 },     // ★ 袋の左上X/Yと高さH（px, 背景生ピクセル基準）
+    bag: { x: 50, y: 0, h: 1280 },     // ★ 袋の左上X/Yと高さH（px, 背景生ピクセル基準）
   },
   shelf: {
     name: "shelf",
     bgUrl: "/scenes/shelf.jpg",          // public/scenes/shelf.jpg
     outEl: $("#right-bottom"),           // 右下
     canvasW: 1600,
-    bag: { x: 30, y: -100, h: 1000 },       // ★ ここも自由に　x少ないと左、y少ないと上
+    bag: { x: 30, y: 0, h: 1100 },       // ★ ここも自由に　x少ないと左、y少ないと上
   },
 };
 
