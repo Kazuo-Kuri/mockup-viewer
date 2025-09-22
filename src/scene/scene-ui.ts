@@ -76,14 +76,14 @@ const PROFILES: Record<"cafe" | "shelf", Profile> = {
     bgUrl: "/scenes/cafe.jpg",           // public/scenes/cafe.jpg
     outEl: $("#scene-out"),              // 右上
     canvasW: 1600,                       // 出力横幅（重い時は下げる）
-    bag: { x: 580, y: 260, h: 980 },     // ★ 袋の左上X/Yと高さH（px, 背景生ピクセル基準）
+    bag: { x: 280, y: 200, h: 1080 },     // ★ 袋の左上X/Yと高さH（px, 背景生ピクセル基準）
   },
   shelf: {
     name: "shelf",
     bgUrl: "/scenes/shelf.jpg",          // public/scenes/shelf.jpg
     outEl: $("#right-bottom"),           // 右下
     canvasW: 1600,
-    bag: { x: 520, y: 220, h: 960 },     // ★ ここも自由に
+    bag: { x: 320, y: 180, h: 1060 },     // ★ ここも自由に
   },
 };
 
