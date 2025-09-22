@@ -23,14 +23,14 @@ const AMBIENT_FLOOR         = 0.18;
 const VIEW_PROFILES = [
   {
     name: "cafe",                          // 右上
-    position: { x: 0.38, y: 0.28, z: 0.62 },
+    position: { x: 0.20, y: 0.18, z: 0.62 },
     target  : { x: 0.00, y: 0.05, z: 0.00 },
     fovDeg  : 42,
     out     : { width: 1200, height: 900 },
   },
   {
     name: "shelf",                         // 右下
-    position: { x: 0.25, y: 0.26, z: 0.70 },
+    position: { x: 0.20, y: 0.16, z: 0.70 },
     target  : { x: 0.00, y: 0.04, z: 0.00 },
     fovDeg  : 48,
     out     : { width: 1200, height: 900 },
