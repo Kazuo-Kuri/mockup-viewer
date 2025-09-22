@@ -85,7 +85,7 @@ const PROFILES: Record<"cafe" | "shelf", Profile> = {
     bgUrl: "/scenes/cafe.jpg",           // public/scenes/cafe.jpg
     outEl: $("#scene-out"),              // 右上
     canvasW: 1600,                       // 出力横幅（重い時は下げる）
-    bag: { x: 50, y: -10, h: 1200 },     // ★ 袋の左上X/Yと高さH（px, 背景生ピクセル基準）
+    bag: { x: 50, y: -50, h: 1200 },     // ★ 袋の左上X/Yと高さH（px, 背景生ピクセル基準）
   },
   shelf: {
     name: "shelf",
