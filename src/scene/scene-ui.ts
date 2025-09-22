@@ -59,14 +59,23 @@ async function composeWithBag(profile: Profile, bagDataUrl: string) {
   // 袋PNG（透過）を配置
   ctx.drawImage(bagImg, drawX, drawY, drawW, drawH);
 
-  // DOMへ反映
+  // DOMへ反映（ズレ防止のためレイアウトとスクロールをリセット）
   const out = new Image();
   out.alt = profile.name;
   out.src = canvas.toDataURL("image/png");
   out.style.maxWidth = "100%";
   out.style.height = "auto";
+  out.style.display = "block";        // ← インラインの余白やセンタリング影響を防ぐ
+
+  outEl.style.display = "block";      // ← grid/center を上書き
+  // @ts-ignore
+  outEl.style.placeItems = "";        // ← place-items を無効化
   outEl.innerHTML = "";
   outEl.appendChild(out);
+
+  // ← 置き換え時のスクロール位置をリセット
+  outEl.scrollTop = 0;
+  outEl.scrollLeft = 0;
 }
 
 // ====== 各ビューの配置パラメータ（ここを編集するだけで調整OK） ======
@@ -76,14 +85,14 @@ const PROFILES: Record<"cafe" | "shelf", Profile> = {
     bgUrl: "/scenes/cafe.jpg",           // public/scenes/cafe.jpg
     outEl: $("#scene-out"),              // 右上
     canvasW: 1600,                       // 出力横幅（重い時は下げる）
-    bag: { x: 980, y: 360, h: 780 },     // ★ 袋の左上X/Yと高さH（px, 背景生ピクセル基準）
+    bag: { x: 80, y: 500, h: 1080 },     // ★ 袋の左上X/Yと高さH（px, 背景生ピクセル基準）
   },
   shelf: {
     name: "shelf",
     bgUrl: "/scenes/shelf.jpg",          // public/scenes/shelf.jpg
     outEl: $("#right-bottom"),           // 右下
     canvasW: 1600,
-    bag: { x: 820, y: 520, h: 760 },     // ★ ここも自由に　x少ないと左、y少ないと上
+    bag: { x: 50, y: 0, h: 1260 },       // ★ ここも自由に　x少ないと左、y少ないと上
   },
 };
 
