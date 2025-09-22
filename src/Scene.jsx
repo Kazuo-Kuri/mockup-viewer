@@ -530,8 +530,10 @@ export default function Scene() {
         // 左上寄せ（オフアクシス）
         frameByBox(centeredBox, 2.5, { x: 0.31, y: 0.4 });
 
-        // 初期に artTexURL が既にある場合の適用
+        // ※ ここでは exportAllViews を呼ばない（ダブル発火防止）
+        //    アート適用とエクスポートは onFile() で行う。
         if (artTexURL && printMat) {
+          // 必要なら初期表示用にテクスチャを当てるだけはしておく（エクスポートはしない）
           const oldTex = printMat.map || null;
           new THREE.TextureLoader().load(artTexURL, (tex) => {
             tex.colorSpace = THREE.SRGBColorSpace;
@@ -539,13 +541,8 @@ export default function Scene() {
             tex.anisotropy = 8;
             if (oldTex) copyTextureTransform(oldTex, tex);
             else tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-
             printMat.map = tex;
             printMat.needsUpdate = true;
-
-            // 右カラムへ通知 & 固定ビューを書き出し
-            try { window.dispatchEvent(new CustomEvent("bag:art-loaded", { detail: { url: artTexURL } })); } catch {}
-            exportAllViews();
           });
         }
       },
@@ -605,14 +602,14 @@ export default function Scene() {
       renderer.dispose();
       if (pmrem) pmrem.dispose();
     };
-  }, [artTexURL]);
+  }, []); // ← 初回のみ実行に変更
 
   // ======== 固定ビューの袋PNGを書き出す（透過） ========
   function exportBagView(profile) {
     const { scene, camera, renderer, controls, ground } = threeRef.current;
     if (!scene || !camera || !renderer) return;
 
-    // 現状態の退避
+    // 現状態の退避（viewOffset も保存）
     const old = {
       camPos: camera.position.clone(),
       camQuat: camera.quaternion.clone(),
@@ -620,7 +617,7 @@ export default function Scene() {
       camAspect: camera.aspect,
       near: camera.near,
       far: camera.far,
-      viewOffset: camera.view || null,
+      view: camera.view ? { ...camera.view } : null,
       target: controls?.target?.clone?.() || new THREE.Vector3(),
       groundVisible: ground?.visible ?? true,
     };
@@ -660,7 +657,7 @@ export default function Scene() {
       window.dispatchEvent(new CustomEvent("bag:rendered", { detail: { dataUrl, view: profile.name } }));
     } catch {}
 
-    // 状態復帰
+    // 状態復帰（viewOffset も戻す）
     if (ground) ground.visible = old.groundVisible;
     camera.position.copy(old.camPos);
     camera.quaternion.copy(old.camQuat);
@@ -668,6 +665,13 @@ export default function Scene() {
     camera.aspect = old.camAspect;
     camera.near = old.near;
     camera.far  = old.far;
+    if (old.view) {
+      camera.setViewOffset(
+        old.view.fullWidth, old.view.fullHeight,
+        old.view.offsetX,  old.view.offsetY,
+        old.view.width,    old.view.height
+      );
+    }
     camera.updateProjectionMatrix();
     if (controls && controls.target) {
       controls.target.copy(old.target);
@@ -723,7 +727,7 @@ export default function Scene() {
       printMat.polygonOffsetUnits = -1;
       printMat.needsUpdate = true;
 
-      // 右カラムへ通知 & 固定ビューを書き出し
+      // 右カラムへ通知 & 固定ビューを書き出し（※ここだけで1回）
       try { window.dispatchEvent(new CustomEvent("bag:art-loaded", { detail: { url } })); } catch {}
       exportAllViews();
     });
