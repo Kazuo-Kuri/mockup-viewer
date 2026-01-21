@@ -11,7 +11,7 @@ const HDR_PATH       = new URL("assets/hdr/studio_small.hdr", BASE).toString();
 
 const TONE_EXPOSURE         = 1.45;
 const LIGHT_INTENSITY_BOOST = 3.2;
-const AMBIENT_FLOOR         = 0.18;
+const AMBIENT_FLOOR         = 0.35;
 
 /**
  * 右カラム用 固定ビュー定義（ここだけ触れば角度・縮尺を調整できます）
