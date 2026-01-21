@@ -9,7 +9,7 @@ const USE_HDR_ENV    = false;
 const BASE           = (typeof document !== "undefined" ? document.baseURI : "/");
 const HDR_PATH       = new URL("assets/hdr/studio_small.hdr", BASE).toString();
 
-const TONE_EXPOSURE         = 1.25;
+const TONE_EXPOSURE         = 1.45;
 const LIGHT_INTENSITY_BOOST = 2.2;
 const AMBIENT_FLOOR         = 0.18;
 
